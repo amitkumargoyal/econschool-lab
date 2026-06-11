@@ -1,0 +1,144 @@
+---
+import Base from '../layouts/Base.astro';
+import { subjects } from '../data/subjects';
+import { tools } from '../data/tools';
+import { getCollection } from 'astro:content';
+import { withBase } from '../utils';
+
+const notes = await getCollection('notes', ({ data }) => !data.draft);
+const problemSets = await getCollection('problemSets', ({ data }) => !data.draft);
+
+const counts = (id: string) => ({
+  tools: tools.filter((t) => t.subject === id).length,
+  notes: notes.filter((n) => n.data.subject === id).length,
+  ps: problemSets.filter((p) => p.data.subject === id).length,
+});
+
+const label = (n: number, word: string) =>
+  n === 0 ? null : `${n} ${word}${n === 1 ? '' : 's'}`;
+---
+
+<Base title="Home">
+  <section class="masthead">
+    <div>
+      <p class="eyebrow">Econschool</p>
+      <h1>Tools to see the theory.</h1>
+      <p class="lede">
+        Interactive visualisers, lecture notes, and problem sets for students
+        preparing for graduate study in economics. Open a tool, move the
+        sliders, and watch the mathematics do what it claims.
+      </p>
+    </div>
+    <svg
+      class="emblem"
+      viewBox="0 0 200 200"
+      role="img"
+      aria-label="An indifference curve tangent to a budget line"
+    >
+      <line x1="20" y1="180" x2="20" y2="14" stroke="#2c2433" stroke-width="1.5" />
+      <line x1="20" y1="180" x2="186" y2="180" stroke="#2c2433" stroke-width="1.5" />
+      <line x1="28" y1="32" x2="172" y2="176" stroke="#5a1ba6" stroke-width="2.5" />
+      <path
+        d="M 60 30 Q 84 88 100 104 Q 122 126 170 142"
+        fill="none"
+        stroke="#a03a2c"
+        stroke-width="2.5"
+      />
+      <circle cx="100" cy="104" r="5" fill="#9caf88" stroke="#2c2433" stroke-width="1.2" />
+    </svg>
+  </section>
+
+  <section class="subjects">
+    {
+      subjects.map((s) => {
+        const c = counts(s.id);
+        const parts = [label(c.tools, 'tool'), label(c.notes, 'note'), label(c.ps, 'problem set')].filter(Boolean);
+        return (
+          <a class="card" href={withBase(`/${s.id}/`)}>
+            <h2>{s.title}</h2>
+            <p>{s.blurb}</p>
+            <p class="eyebrow meta">{parts.length ? parts.join(' · ') : 'Material coming soon'}</p>
+          </a>
+        );
+      })
+    }
+  </section>
+</Base>
+
+<style>
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2.5rem;
+    padding: 3rem 0 2.5rem;
+  }
+
+  .masthead h1 {
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    margin: 0.3rem 0 0.8rem;
+  }
+
+  .lede {
+    max-width: 32rem;
+    font-size: 1.12rem;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .emblem {
+    width: clamp(120px, 18vw, 180px);
+    flex: none;
+  }
+
+  .subjects {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1.2rem;
+  }
+
+  .card {
+    display: block;
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--sage) 45%, transparent);
+    border-top: 3px solid var(--sage);
+    border-radius: 6px;
+    padding: 1.3rem 1.4rem 1.1rem;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .card:hover {
+    border-top-color: var(--terracotta);
+    transform: translateY(-2px);
+  }
+
+  .card h2 {
+    margin: 0 0 0.45rem;
+    font-size: 1.25rem;
+  }
+
+  .card p {
+    margin: 0 0 0.9rem;
+    font-size: 0.96rem;
+    color: var(--ink-soft);
+  }
+
+  .card .meta {
+    margin: 0;
+    color: var(--terracotta);
+  }
+
+  @media (max-width: 640px) {
+    .masthead {
+      flex-direction: column-reverse;
+      text-align: left;
+      gap: 1rem;
+      padding-top: 1.8rem;
+    }
+    .emblem {
+      align-self: flex-end;
+    }
+  }
+</style>

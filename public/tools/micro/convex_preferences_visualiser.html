@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convex Preferences: UMP &amp; EMP Visualiser</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+  :root{
+    --violet:#5A1BA6; --terracotta:#A03A2C; --sage:#9CAF88; --cream:#FAF7F2;
+    --gold:#8A7A1F; --ink:#2b2620; --muted:#6b6457; --line:#e4ddcf;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--cream); color:var(--ink); font-family:Georgia,"Times New Roman",serif; line-height:1.5;}
+  .wrap{max-width:1040px; margin:0 auto; padding:12px 18px 18px;}
+  h1{color:var(--violet); font-size:20px; margin:0 0 2px; letter-spacing:.2px;}
+  .sub{color:var(--muted); font-size:13px; margin:0 0 8px;}
+  .ufn{font-size:16px; margin:2px 0 10px; min-height:26px;}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
+  .controls{display:flex; flex-wrap:wrap; gap:12px 24px; align-items:flex-start; margin-bottom:10px;}
+  .sliders{display:flex; flex-wrap:wrap; gap:10px 22px; align-items:flex-start; margin-bottom:10px;}
+  .ctl-lbl{font-size:13px;color:var(--muted);margin-bottom:6px;}
+  select{font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--violet); border-radius:8px; background:#fff; color:var(--violet); min-width:250px;}
+  .modebox{display:flex; border:1px solid var(--violet); border-radius:8px; overflow:hidden;}
+  .modebox button{font-family:inherit; font-size:14px; padding:8px 16px; border:0; cursor:pointer; background:#fff; color:var(--violet);}
+  .modebox button.active{background:var(--violet); color:#fff;}
+  .slider{min-width:140px; flex:1 1 140px;}
+  .slider label{display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;}
+  .slider label b{color:var(--terracotta); font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%; accent-color:var(--violet);}
+  .layout{display:flex; gap:22px; flex-wrap:wrap;}
+  .plotcol{flex:1 1 460px; min-width:320px;}
+  .readcol{flex:1 1 280px; min-width:260px;}
+  svg{width:100%; height:auto; display:block; max-height:min(50vh,420px); margin:0 auto;}
+  .legend{display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:6px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:18px; height:0; border-top-width:3px; border-top-style:solid; display:inline-block;}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--gold); display:inline-block;}
+  .readcol h2{font-size:14px; color:var(--violet); margin:0 0 6px; text-transform:uppercase; letter-spacing:.6px;}
+  .kv{display:flex; justify-content:space-between; font-size:13.5px; padding:3px 0; border-bottom:1px dotted var(--line);}
+  .kv b{font-variant-numeric:tabular-nums;}
+  .regime{margin:8px 0; padding:8px 10px; background:var(--cream); border-left:4px solid var(--sage); border-radius:4px; font-size:13.5px;}
+  .soln{margin-top:8px; font-size:14px;}
+  .note{font-size:11.5px; color:var(--muted); margin-top:8px;}
+  .footer{margin-top:10px; padding-top:8px; border-top:1px solid var(--sage); font-size:12.5px; color:var(--muted); text-align:center; letter-spacing:.3px;}
+  .footer a{color:var(--terracotta); text-decoration:none;}
+  .footer a:hover{text-decoration:underline;}
+
+  /* --- compact on phones: 2 sliders per row, shorter plot --- */
+  @media (max-width:560px){
+    .wrap{padding:10px 12px 14px;}
+    h1{font-size:18px;}
+    .sub{font-size:12px; margin:0 0 6px;}
+    .ufn{font-size:14px; min-height:22px; margin:2px 0 8px;}
+    svg{max-height:42vh;}
+    .controls{gap:8px 16px; margin-bottom:8px;}
+    .sliders{gap:8px 14px; margin-bottom:8px;}
+    .slider{min-width:46%; flex:1 1 46%;}
+    .layout{gap:14px;}
+    .regime,.soln{font-size:13px;}
+    .note{font-size:11px; margin-top:6px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Convex Preferences — UMP &amp; EMP Visualiser</h1>
+  <p class="sub">Convex preferences: the optimum is an interior tangency on the smooth arm, or a kink, or a corner. Choose a utility, then a problem.</p>
+  <div class="ufn" id="ufn"></div>
+
+  <div class="panel">
+    <div class="controls">
+      <div>
+        <div class="ctl-lbl">Utility function</div>
+        <select id="ufunc">
+          <option value="minlog">min-log:  min{ 2x, x + ln y }</option>
+          <option value="minsqrt">min-sqrt:  min{ &#8730;(xy), y }</option>
+          <option value="min3">min-quad:  min{ 3x&#178;, xy, 3y&#178; }</option>
+          <option value="qlin">quasi-linear:  y e&#739;</option>
+        </select>
+      </div>
+      <div>
+        <div class="ctl-lbl">Problem</div>
+        <div class="modebox">
+          <button id="btnUMP" class="active">Maximise utility (UMP)</button>
+          <button id="btnEMP">Minimise expenditure (EMP)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sliders">
+      <div class="slider">
+        <label><span>price&nbsp;p<sub>X</sub></span><b id="pxVal">1.00</b></label>
+        <input type="range" id="px" min="0.5" max="2" step="0.05" value="1">
+      </div>
+      <div class="slider">
+        <label><span>price&nbsp;p<sub>Y</sub></span><b id="pyVal">1.00</b></label>
+        <input type="range" id="py" min="0.5" max="2" step="0.05" value="1">
+      </div>
+      <div class="slider">
+        <label id="thirdLabel"><span>income&nbsp;M</span><b id="thirdVal">1.5</b></label>
+        <input type="range" id="third" min="0" max="2" step="0.05" value="1.5">
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="plotcol">
+        <svg id="plot" viewBox="0 0 540 532" role="img" aria-label="Convex preference diagram"></svg>
+        <div class="legend">
+          <span><i class="swatch" style="border-top-color:var(--violet)"></i> <i id="lblLine">budget line</i></span>
+          <span><i class="swatch" style="border-top-color:var(--terracotta)"></i> indifference curve</span>
+          <span><i class="dot"></i> optimal bundle</span>
+          <span id="legKink"><i class="swatch" style="border-top-color:var(--sage);border-top-style:dashed"></i> <i id="lblKink">kink locus y = e&#739;</i></span>
+        </div>
+      </div>
+      <div class="readcol">
+        <h2 id="readTitle">Solution</h2>
+        <div class="kv"><span>p<sub>X</sub> / p<sub>Y</sub></span><b id="kRatio"></b></div>
+        <div class="kv"><span id="kThirdLbl">income M</span><b id="kThird"></b></div>
+        <div class="kv" id="kvLevel"><span id="kLevelLbl">utility u*</span><b id="kLevel"></b></div>
+        <div class="kv" id="kvObj"><span id="kObjLbl">spending</span><b id="kObj"></b></div>
+        <div class="regime" id="regime"></div>
+        <div class="soln" id="soln"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" id="footnote"></p>
+
+  <footer class="footer">
+    Built with Claude &nbsp;·&nbsp; Amit Goyal &nbsp;·&nbsp;
+    <a href="mailto:amit@econschool.in">amit@econschool.in</a>
+  </footer>
+</div>
+
+<script>
+"use strict";
+let mode = "UMP";
+let cur = "minlog";
+const EPS = 1e-9;
+const fmt = (n,d=2)=>Number(n.toFixed(d)).toString();
+
+/* ---------- geometry ---------- */
+const AX = 4;
+const P = {l:56, r:24, t:24, b:48};
+const W=540, H=532, plotW=W-P.l-P.r, plotH=H-P.t-P.b;
+const xPix = x => P.l + (x/AX)*plotW;
+const yPix = y => P.t + plotH - (y/AX)*plotH;
+const FIXED_TICKS=[0,1,2,3,4];
+const clamp = v => Math.max(0, Math.min(AX, v));
+
+function el(tag, attrs){
+  const e=document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+/* solve p_X x + p_Y e^x = M for x >= 0 (intersection of budget line with kink locus y=e^x) */
+function solveKink(px,py,M){
+  const f=x=>px*x+py*Math.exp(x)-M;
+  if(f(0)>=0) return 0;                 // budget can't reach the locus at x>0
+  let lo=0, hi=1;
+  while(f(hi)<0 && hi<60) hi*=2;
+  for(let i=0;i<90;i++){ const mid=(lo+hi)/2; if(f(mid)<0) lo=mid; else hi=mid; }
+  return (lo+hi)/2;
+}
+
+/* ---------- per-function model ---------- */
+const FUNCS = {
+  minlog: {
+    tex: "u(x,y)=\\min\\bigl\\{\\,2x,\\ x+\\ln y\\,\\bigr\\}",
+    kinkLabel: "kink locus y = e\u02e3",
+    uMinEMP: -2,
+    uMaxEMP: 3,
+    footnote: "The upper-contour set is convex (intersection of two convex sets). The two branches meet on the kink locus y = e&#739;: above it the indifference curve is vertical (only x matters); below it it is the smooth arm x + ln y = const.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      const uOf=(x,y)=>Math.min(2*x, x + (y>0?Math.log(y):-1e9));
+
+      if(mode==="UMP"){
+        const M=third;
+        if(py>=M){
+          if(px>=M){                              // Case 1a: corner on y-axis
+            o.pts=[[0, M/py]];
+            o.regime="p<sub>X</sub> &ge; M <i>and</i> p<sub>Y</sub> &ge; M &rarr; spend everything on Y at the axis corner.";
+            o.tex="\\left(0,\\ \\dfrac{M}{p_Y}\\right)";
+          } else {                                // Case 1b: interior tangency
+            o.pts=[[(M-px)/px, px/py]];
+            o.regime="p<sub>X</sub> &lt; M <i>and</i> p<sub>Y</sub> &ge; M &rarr; interior tangency on the smooth arm.";
+            o.tex="\\left(\\dfrac{M-p_X}{p_X},\\ \\dfrac{p_X}{p_Y}\\right)";
+          }
+        } else {                                  // Case 2: p_Y < M; (x*,y*) solves y=e^x and the budget line
+          const xs=solveKink(px,py,M), ys=Math.exp(xs);
+          if(ratio>ys){                           // Case 2a: kink solution
+            o.pts=[[xs,ys]];
+            o.regime="p<sub>Y</sub> &lt; M. Let (x*, y*) solve y = e&#739; and p<sub>X</sub>x + p<sub>Y</sub>y = M (the budget line meeting the kink locus). Since p<sub>X</sub>/p<sub>Y</sub> &gt; y*, the optimum is the kink (x*, y*).";
+            o.tex="(x^{*},\\ y^{*}),\\quad y^{*}=e^{x^{*}},\\ \\ p_X x^{*}+p_Y y^{*}=M";
+          } else {                                // Case 2b: interior tangency
+            o.pts=[[(M-px)/px, px/py]];
+            o.regime="p<sub>Y</sub> &lt; M. Let (x*, y*) solve y = e&#739; and p<sub>X</sub>x + p<sub>Y</sub>y = M (the budget line meeting the kink locus). Since p<sub>X</sub>/p<sub>Y</sub> &le; y*, the optimum is the interior tangency on the smooth arm.";
+            o.tex="\\left(\\dfrac{M-p_X}{p_X},\\ \\dfrac{p_X}{p_Y}\\right)";
+          }
+        }
+        const b=o.pts[0]; o.level=uOf(b[0],b[1]);
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (x&#7496;, y&#7496;):";
+
+      } else {                                    // EMP: minimise p_X x + p_Y y s.t. u >= u-bar, x,y >= 0
+        const u=third, r=ratio;
+        if(u>=0){
+          const thr=Math.exp(u/2);
+          if(r<=thr){                             // interior solution on the smooth arm
+            o.pts=[[u-Math.log(r), r]];
+            o.regime="p<sub>X</sub>/p<sub>Y</sub> &le; e<sup>&#363;/2</sup> &rarr; interior solution on the smooth arm: y = p<sub>X</sub>/p<sub>Y</sub>.";
+            o.tex="\\left(\\bar u-\\ln\\dfrac{p_X}{p_Y},\\ \\dfrac{p_X}{p_Y}\\right)";
+          } else {                                // cheapest point is the kink
+            o.pts=[[u/2, thr]];
+            o.regime="p<sub>X</sub>/p<sub>Y</sub> &gt; e<sup>&#363;/2</sup> &rarr; cheapest point on the target curve is the kink.";
+            o.tex="\\left(\\dfrac{\\bar u}{2},\\ e^{\\bar u/2}\\right)";
+          }
+        } else {                                  // u-bar < 0: the vertical arm sits below x=0, so the boundary in the positive quadrant is the smooth arm from x=0
+          if(r<=Math.exp(u)){                     // interior still feasible (x = u - ln r >= 0)
+            o.pts=[[u-Math.log(r), r]];
+            o.regime="\u016b &lt; 0 with p<sub>X</sub>/p<sub>Y</sub> &le; e<sup>&#363;</sup> &rarr; interior solution on the smooth arm: y = p<sub>X</sub>/p<sub>Y</sub>.";
+            o.tex="\\left(\\bar u-\\ln\\dfrac{p_X}{p_Y},\\ \\dfrac{p_X}{p_Y}\\right)";
+          } else {                                // x = 0 corner on the smooth arm
+            o.pts=[[0, Math.exp(u)]];
+            o.regime="\u016b &lt; 0 with p<sub>X</sub>/p<sub>Y</sub> &gt; e<sup>&#363;</sup> &rarr; cheapest point is the x = 0 corner.";
+            o.tex="\\left(0,\\ e^{\\bar u}\\right)";
+          }
+        }
+        const b=o.pts[0], e=px*b[0]+py*b[1];
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target \u016b";
+        o.head="Hicksian demand (x\u02b0, y\u02b0):";
+      }
+      return o;
+    },
+    /* indifference curve at level k: vertical arm x=k/2 (y>=e^{k/2}) + smooth arm y=e^{k-x} (x>=k/2) */
+    contour(svg,k){
+      const xv=k/2, ybase=Math.exp(k/2);
+      if(xv>=-EPS && xv<=AX && ybase<=AX){
+        svg.appendChild(el("line",{x1:xPix(xv),y1:yPix(ybase),x2:xPix(xv),y2:yPix(AX),
+          fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+      }
+      const pts=[], N=240, xstart=Math.max(k/2,0);
+      for(let i=0;i<=N;i++){
+        const x=xstart+(AX-xstart)*i/N, y=Math.exp(k-x);
+        if(y>=-EPS && y<=AX) pts.push(`${xPix(x)},${yPix(Math.max(0,y))}`);
+      }
+      if(pts.length>1) svg.appendChild(el("polyline",{points:pts.join(" "),
+        fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    },
+    /* dashed kink locus y = e^x */
+    guides(svg){
+      const pts=[], N=200;
+      for(let i=0;i<=N;i++){ const x=AX*i/N, y=Math.exp(x); if(y<=AX) pts.push(`${xPix(x)},${yPix(y)}`); }
+      svg.appendChild(el("polyline",{points:pts.join(" "),fill:"none",stroke:"var(--sage)",
+        "stroke-width":1.4,"stroke-dasharray":"5 4"}));
+      const lx=AX*0.78, ly=Math.exp(lx);
+      const lastX = ly<=AX ? lx : (Math.log(AX)-0.18);
+      const lastY = Math.min(Math.exp(lastX),AX);
+      const t=el("text",{x:xPix(lastX)+8,y:yPix(lastY)-2,fill:"#9aa388","font-size":12,"font-style":"italic"});
+      t.textContent="y = e\u02e3"; svg.appendChild(t);
+    }
+  },
+
+  minsqrt: {
+    tex: "u(x,y)=\\min\\!\\left(\\sqrt{xy},\\ y\\right)=\\left\\{\\begin{array}{ll}\\sqrt{xy} & x\\le y\\\\[6pt] y & x>y\\end{array}\\right.",
+    kinkLabel: "kink locus y = x",
+    uMinEMP: 0,
+    uMaxEMP: 2,
+    footnote: "Above the 45&deg; line (x &le; y) utility is the Cobb&ndash;Douglas form &#8730;(xy), so the indifference curves are hyperbolae; below it (x &gt; y) utility is just y, so they are horizontal. The two arms meet on the kink locus y = x. The upper-contour set is convex.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      if(mode==="UMP"){
+        const M=third;
+        if(ratio>=1){                              // interior tangency on the Cobb-Douglas arm (x <= y)
+          o.pts=[[M/(2*px), M/(2*py)]];
+          o.level = M/(2*Math.sqrt(px*py));
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &ge; 1 &rarr; interior tangency above the 45&deg; line (Cobb&ndash;Douglas arm).";
+          o.tex="\\left(\\dfrac{M}{2p_X},\\ \\dfrac{M}{2p_Y}\\right)";
+        } else {                                   // kink solution on y = x
+          const t=M/(px+py); o.pts=[[t,t]]; o.level=t;
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &lt; 1 &rarr; optimum at the kink on y = x.";
+          o.tex="\\left(\\dfrac{M}{p_X+p_Y},\\ \\dfrac{M}{p_X+p_Y}\\right)";
+        }
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (x&#7496;, y&#7496;):";
+      } else {                                     // EMP: minimise p_X x + p_Y y s.t. u >= u-bar
+        const u=third;
+        if(ratio>=1){                              // interior tangency on the Cobb-Douglas arm
+          o.pts=[[u*Math.sqrt(py/px), u*Math.sqrt(px/py)]];
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &ge; 1 &rarr; interior tangency above the 45&deg; line.";
+          o.tex="\\left(\\bar u\\sqrt{\\dfrac{p_Y}{p_X}},\\ \\bar u\\sqrt{\\dfrac{p_X}{p_Y}}\\right)";
+        } else {                                   // kink on y = x
+          o.pts=[[u,u]];
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &lt; 1 &rarr; cheapest point on the target curve is the kink (&#363;,&#363;).";
+          o.tex="\\left(\\bar u,\\ \\bar u\\right)";
+        }
+        const b=o.pts[0], e=px*b[0]+py*b[1];
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target \u016b";
+        o.head="Hicksian demand (x\u02b0, y\u02b0):";
+      }
+      return o;
+    },
+    /* indifference curve at level k: hyperbola xy=k^2 (x<=k) + horizontal y=k (x>=k), meeting at (k,k) */
+    contour(svg,k){
+      if(k<=EPS) return;
+      const pts=[], N=200;
+      const xlo=Math.max(k*k/AX, 1e-6), xhi=k;          // hyperbola arm: y runs from AX down to k
+      for(let i=0;i<=N;i++){
+        const x=xlo+(xhi-xlo)*i/N, y=k*k/x;
+        if(x>=0 && x<=AX && y>=0 && y<=AX) pts.push(`${xPix(x)},${yPix(y)}`);
+      }
+      if(k<=AX){ for(let i=0;i<=N;i++){ const x=k+(AX-k)*i/N; pts.push(`${xPix(x)},${yPix(k)}`); } }
+      if(pts.length>1) svg.appendChild(el("polyline",{points:pts.join(" "),
+        fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    },
+    /* dashed kink locus y = x */
+    guides(svg){
+      svg.appendChild(el("line",{x1:xPix(0),y1:yPix(0),x2:xPix(AX),y2:yPix(AX),
+        stroke:"var(--sage)","stroke-width":1.4,"stroke-dasharray":"5 4"}));
+      const t=el("text",{x:xPix(AX*0.82)+6,y:yPix(AX*0.82)-6,fill:"#9aa388","font-size":12,"font-style":"italic"});
+      t.textContent="y = x"; svg.appendChild(t);
+    }
+  },
+
+  min3: {
+    tex: "u(x,y)=\\min\\!\\left(3x^{2},\\,xy,\\,3y^{2}\\right)=\\left\\{\\begin{array}{ll}3x^{2} & y\\ge 3x\\\\[5pt] xy & \\tfrac{1}{3}x<y<3x\\\\[5pt] 3y^{2} & \\text{otherwise}\\end{array}\\right.",
+    kinkLabel: "kink loci y = 3x and y = x/3",
+    uMinEMP: 0,
+    uMaxEMP: 4,
+    footnote: "Three branches: u = 3x&#178; when y &ge; 3x (vertical-line ICs), u = xy in the cone &#8531;x &lt; y &lt; 3x (Cobb&ndash;Douglas hyperbolae), and u = 3y&#178; when y &le; x/3 (horizontal-line ICs). The kink loci are the rays y = 3x and y = x/3. The upper-contour set is convex.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      const uOf=(x,y)=>Math.min(3*x*x, x*y, 3*y*y);
+      if(mode==="UMP"){
+        const M=third;
+        if(ratio>=3){                              // kink on the ray y = 3x
+          const d=px+3*py; o.pts=[[M/d, 3*M/d]];
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &ge; 3 &rarr; kink on the ray y = 3x.";
+          o.tex="\\left(\\dfrac{M}{p_X+3p_Y},\\ \\dfrac{3M}{p_X+3p_Y}\\right)";
+        } else if(ratio>1/3){                      // interior tangency on the Cobb-Douglas cone (u = xy)
+          o.pts=[[M/(2*px), M/(2*py)]];
+          o.regime="&#8531; &lt; p<sub>X</sub>/p<sub>Y</sub> &lt; 3 &rarr; interior tangency on the cone (u = xy).";
+          o.tex="\\left(\\dfrac{M}{2p_X},\\ \\dfrac{M}{2p_Y}\\right)";
+        } else {                                   // kink on the ray y = x/3
+          const d=3*px+py; o.pts=[[3*M/d, M/d]];
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &le; &#8531; &rarr; kink on the ray y = x/3.";
+          o.tex="\\left(\\dfrac{3M}{3p_X+p_Y},\\ \\dfrac{M}{3p_X+p_Y}\\right)";
+        }
+        const b=o.pts[0]; o.level=uOf(b[0],b[1]);
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (x&#7496;, y&#7496;):";
+      } else {                                     // EMP: minimise p_X x + p_Y y s.t. u >= u-bar
+        const u=third;
+        if(ratio>=3){                              // kink on y = 3x
+          const s=Math.sqrt(u/3); o.pts=[[s, 3*s]];
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &ge; 3 &rarr; cheapest point is the kink on y = 3x.";
+          o.tex="\\left(\\sqrt{\\tfrac{\\bar u}{3}},\\ 3\\sqrt{\\tfrac{\\bar u}{3}}\\right)";
+        } else if(ratio>1/3){                      // interior tangency on the cone
+          o.pts=[[Math.sqrt(u*py/px), Math.sqrt(u*px/py)]];
+          o.regime="&#8531; &lt; p<sub>X</sub>/p<sub>Y</sub> &lt; 3 &rarr; interior tangency on the cone (u = xy).";
+          o.tex="\\left(\\sqrt{\\bar u\\,\\dfrac{p_Y}{p_X}},\\ \\sqrt{\\bar u\\,\\dfrac{p_X}{p_Y}}\\right)";
+        } else {                                   // kink on y = x/3
+          o.pts=[[Math.sqrt(3*u), Math.sqrt(u/3)]];
+          o.regime="p<sub>X</sub>/p<sub>Y</sub> &le; &#8531; &rarr; cheapest point is the kink on y = x/3.";
+          o.tex="\\left(\\sqrt{3\\bar u},\\ \\sqrt{\\tfrac{\\bar u}{3}}\\right)";
+        }
+        const b=o.pts[0], e=px*b[0]+py*b[1];
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target \u016b";
+        o.head="Hicksian demand (x\u02b0, y\u02b0):";
+      }
+      return o;
+    },
+    /* IC at level k: vertical arm x=s (y>=3s) + hyperbola xy=k (corners on the two rays) + horizontal arm y=s (x>=3s), where s=sqrt(k/3) */
+    contour(svg,k){
+      if(k<=EPS) return;
+      const s=Math.sqrt(k/3), N=120, raw=[];
+      for(let i=0;i<=N;i++){ const y=AX-(AX-3*s)*i/N; raw.push([s,y]); }        // vertical arm, y from AX down to 3s
+      for(let i=1;i<=N;i++){ const x=s+(3*s-s)*i/N; raw.push([x, k/x]); }        // hyperbola, x from s to 3s
+      for(let i=1;i<=N;i++){ const x=3*s+(AX-3*s)*i/N; raw.push([x, s]); }       // horizontal arm, x from 3s to AX
+      const pts=raw.filter(p=>p[0]>=-EPS && p[0]<=AX+EPS && p[1]>=-EPS && p[1]<=AX+EPS)
+                   .map(p=>`${xPix(p[0])},${yPix(p[1])}`);
+      if(pts.length>1) svg.appendChild(el("polyline",{points:pts.join(" "),
+        fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    },
+    /* dashed kink loci y = 3x and y = x/3 */
+    guides(svg){
+      svg.appendChild(el("line",{x1:xPix(0),y1:yPix(0),x2:xPix(AX/3),y2:yPix(AX),
+        stroke:"var(--sage)","stroke-width":1.4,"stroke-dasharray":"5 4"}));
+      svg.appendChild(el("line",{x1:xPix(0),y1:yPix(0),x2:xPix(AX),y2:yPix(AX/3),
+        stroke:"var(--sage)","stroke-width":1.4,"stroke-dasharray":"5 4"}));
+      const t1=el("text",{x:xPix(AX*0.27)+6,y:yPix(AX*0.80),fill:"#9aa388","font-size":12,"font-style":"italic"});
+      t1.textContent="y = 3x"; svg.appendChild(t1);
+      const t2=el("text",{x:xPix(AX*0.70),y:yPix(AX*0.70/3)-4,fill:"#9aa388","font-size":12,"font-style":"italic"});
+      t2.textContent="y = x/3"; svg.appendChild(t2);
+    }
+  },
+
+  qlin: {
+    tex: "u(x,y)=y\\,e^{x}\\quad(\\sim\\ x+\\ln y)",
+    kinkLabel: null,
+    uMinEMP: 0,
+    uMaxEMP: 10,
+    footnote: "u = y e&#739; is ordinally equivalent to the quasi-linear utility x + ln y (take ln). The good y is non-numeraire: its demand y = p_X/p_Y is independent of income, and any extra income is spent on x. The corner x = 0 appears when income cannot reach that y &mdash; in UMP when M &lt; p_X, in EMP when &#363; &lt; p_X/p_Y. The indifference curves y e&#739; = const are exponential-decay curves; the upper-contour set is convex.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      const uOf=(x,y)=>y*Math.exp(x);
+      if(mode==="UMP"){
+        const M=third;
+        if(M>=px){                                 // interior tangency: y = p_X/p_Y
+          o.pts=[[(M-px)/px, px/py]];
+          o.regime="M &ge; p<sub>X</sub> &rarr; interior tangency: y = p<sub>X</sub>/p<sub>Y</sub> (independent of M); the rest is spent on x.";
+          o.tex="\\left(\\dfrac{M-p_X}{p_X},\\ \\dfrac{p_X}{p_Y}\\right)";
+        } else {                                   // corner x = 0
+          o.pts=[[0, M/py]];
+          o.regime="M &lt; p<sub>X</sub> &rarr; income too low to reach y = p<sub>X</sub>/p<sub>Y</sub>; corner at x = 0.";
+          o.tex="\\left(0,\\ \\dfrac{M}{p_Y}\\right)";
+        }
+        const b=o.pts[0]; o.level=uOf(b[0],b[1]);
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (x&#7496;, y&#7496;):";
+      } else {                                     // EMP: minimise p_X x + p_Y y s.t. y e^x >= u-bar
+        const u=third;
+        if(u>=ratio){                              // interior (u-bar >= p_X/p_Y)
+          o.pts=[[Math.log(u*py/px), px/py]];
+          o.regime="&#363; &ge; p<sub>X</sub>/p<sub>Y</sub> &rarr; interior tangency: y = p<sub>X</sub>/p<sub>Y</sub>.";
+          o.tex="\\left(\\ln\\dfrac{\\bar u\\,p_Y}{p_X},\\ \\dfrac{p_X}{p_Y}\\right)";
+        } else {                                   // corner x = 0, y = u-bar
+          o.pts=[[0, u]];
+          o.regime="&#363; &lt; p<sub>X</sub>/p<sub>Y</sub> &rarr; corner at x = 0, with y = &#363;.";
+          o.tex="\\left(0,\\ \\bar u\\right)";
+        }
+        const b=o.pts[0], e=px*b[0]+py*b[1];
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target \u016b";
+        o.head="Hicksian demand (x\u02b0, y\u02b0):";
+      }
+      return o;
+    },
+    /* indifference curve at level k: y = k e^{-x} (exponential decay) */
+    contour(svg,k){
+      if(k<=EPS) return;
+      const pts=[], N=220, x0=Math.max(0, Math.log(k/AX));
+      for(let i=0;i<=N;i++){ const x=x0+(AX-x0)*i/N, y=k*Math.exp(-x);
+        if(y>=-EPS && y<=AX+EPS) pts.push(`${xPix(x)},${yPix(y)}`); }
+      if(pts.length>1) svg.appendChild(el("polyline",{points:pts.join(" "),
+        fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    }
+    /* no kink loci */
+  }
+};
+
+function clipBudget(px,py,B){
+  const cand=[]; let v;
+  v=B/py;          if(v>=-EPS && v<=AX+EPS) cand.push([0,clamp(v)]);
+  v=(B-px*AX)/py;  if(v>=-EPS && v<=AX+EPS) cand.push([AX,clamp(v)]);
+  v=B/px;          if(v>=-EPS && v<=AX+EPS) cand.push([clamp(v),0]);
+  v=(B-py*AX)/px;  if(v>=-EPS && v<=AX+EPS) cand.push([clamp(v),AX]);
+  const u=[]; for(const p of cand){ if(!u.some(q=>Math.abs(q[0]-p[0])<1e-6 && Math.abs(q[1]-p[1])<1e-6)) u.push(p); }
+  return u.length>=2 ? [u[0],u[1]] : null;
+}
+
+function fixedTick(svg,val,axis){
+  if(axis==="x"){
+    svg.appendChild(el("line",{x1:xPix(val),y1:P.t+plotH,x2:xPix(val),y2:P.t+plotH+5,stroke:"#3a342b","stroke-width":1.2}));
+    const t=el("text",{x:xPix(val),y:P.t+plotH+18,fill:"#7a7466","font-size":12,"text-anchor":"middle"}); t.textContent=val; svg.appendChild(t);
+  } else {
+    if(val===0) return;
+    svg.appendChild(el("line",{x1:P.l-5,y1:yPix(val),x2:P.l,y2:yPix(val),stroke:"#3a342b","stroke-width":1.2}));
+    const t=el("text",{x:P.l-12,y:yPix(val)+4,fill:"#7a7466","font-size":12,"text-anchor":"end"}); t.textContent=val; svg.appendChild(t);
+  }
+}
+function dynTick(svg,val,axis){
+  if(val<0.05 || val>AX) return;
+  if(axis==="x"){
+    svg.appendChild(el("line",{x1:xPix(val),y1:P.t+plotH,x2:xPix(val),y2:P.t+plotH+5,stroke:"var(--gold)","stroke-width":1.6}));
+    const t=el("text",{x:xPix(val),y:P.t+plotH+30,fill:"var(--gold)","font-size":11,"text-anchor":"middle","font-weight":"bold"}); t.textContent=fmt(val); svg.appendChild(t);
+  } else {
+    svg.appendChild(el("line",{x1:P.l-5,y1:yPix(val),x2:P.l,y2:yPix(val),stroke:"var(--gold)","stroke-width":1.6}));
+    const t=el("text",{x:P.l-38,y:yPix(val)+4,fill:"var(--gold)","font-size":11,"text-anchor":"middle","font-weight":"bold"}); t.textContent=fmt(val); svg.appendChild(t);
+  }
+}
+
+function draw(s,px,py){
+  const svg=document.getElementById("plot"); svg.innerHTML="";
+  svg.appendChild(el("rect",{x:P.l,y:P.t,width:plotW,height:plotH,fill:"#fff"}));
+  for(const t of FIXED_TICKS){ if(t>0){
+    svg.appendChild(el("line",{x1:xPix(t),y1:P.t,x2:xPix(t),y2:P.t+plotH,stroke:"#f1ebdd"}));
+    svg.appendChild(el("line",{x1:P.l,y1:yPix(t),x2:P.l+plotW,y2:yPix(t),stroke:"#f1ebdd"}));
+  }}
+
+  if(FUNCS[cur].guides) FUNCS[cur].guides(svg);
+
+  // axes + arrowheads
+  const defs=el("defs",{}); const m=el("marker",{id:"arr",markerWidth:8,markerHeight:8,refX:6,refY:3,orient:"auto"});
+  m.appendChild(el("path",{d:"M0,0 L6,3 L0,6 Z",fill:"#3a342b"})); defs.appendChild(m); svg.appendChild(defs);
+  svg.appendChild(el("line",{x1:P.l,y1:P.t+plotH,x2:P.l+plotW+6,y2:P.t+plotH,stroke:"#3a342b","stroke-width":1.4,"marker-end":"url(#arr)"}));
+  svg.appendChild(el("line",{x1:P.l,y1:P.t+plotH,x2:P.l,y2:P.t-6,stroke:"#3a342b","stroke-width":1.4,"marker-end":"url(#arr)"}));
+  for(const t of FIXED_TICKS){ fixedTick(svg,t,"x"); fixedTick(svg,t,"y"); }
+  const xn=el("text",{x:P.l+plotW,y:P.t+plotH+44,fill:"#3a342b","font-size":14,"font-style":"italic","text-anchor":"end"}); xn.textContent="x \u2192"; svg.appendChild(xn);
+  const yn=el("text",{x:P.l-40,y:P.t+12,fill:"#3a342b","font-size":14,"font-style":"italic"}); yn.textContent="y \u2191"; svg.appendChild(yn);
+
+  // contour
+  FUNCS[cur].contour(svg, s.level);
+
+  // budget / iso-cost
+  if(s.line>EPS){ const seg=clipBudget(px,py,s.line); if(seg)
+    svg.appendChild(el("line",{x1:xPix(seg[0][0]),y1:yPix(seg[0][1]),x2:xPix(seg[1][0]),y2:yPix(seg[1][1]),stroke:"var(--violet)","stroke-width":2.6})); }
+
+  // optimal points + dynamic ticks
+  for(const [ox,oy] of s.pts){
+    svg.appendChild(el("circle",{cx:xPix(clamp(ox)),cy:yPix(clamp(oy)),r:5.5,fill:"var(--gold)",stroke:"#fff","stroke-width":1.4}));
+    dynTick(svg,ox,"x"); dynTick(svg,oy,"y");
+  }
+}
+
+function kx(elm,tex,disp){ if(window.katex){katex.render(tex,elm,{displayMode:!!disp,throwOnError:false});} else elm.textContent=tex; }
+
+function readout(s){
+  document.getElementById("kRatio").textContent = fmt(s.ratio,2)+(s.eq?"  (= 1)":(s.ratio<1?"  (< 1)":"  (> 1)"));
+  document.getElementById("kThird").textContent = fmt(parseFloat(document.getElementById("third").value),2);
+  document.getElementById("kLevelLbl").textContent = s.levelLabel;
+  document.getElementById("kLevel").textContent = fmt(s.level,2);
+  document.getElementById("kObjLbl").textContent = s.objLabel;
+  document.getElementById("kObj").textContent = fmt(s.objVal,2);
+  // avoid printing the same number twice: in UMP the control is M and the result is u*;
+  // in EMP the control is u-bar (= the IC level) and the result is e*.
+  document.getElementById("kvLevel").style.display = (mode==="UMP") ? "flex" : "none";
+  document.getElementById("kvObj").style.display = (mode==="EMP") ? "flex" : "none";
+  document.getElementById("regime").innerHTML = s.regime;
+
+  const soln=document.getElementById("soln"); soln.innerHTML="";
+  const head=document.createElement("div"); head.style.cssText="font-size:13px;color:var(--muted);margin-bottom:4px;"; head.innerHTML=s.head; soln.appendChild(head);
+  const box=document.createElement("div"); soln.appendChild(box); kx(box,s.tex,true);
+  const num=document.createElement("div"); num.style.cssText="margin-top:8px;font-size:14px;";
+  num.innerHTML=s.pts.map(p=>`(${fmt(p[0])}, ${fmt(p[1])})`).join("&nbsp; and &nbsp;"); soln.appendChild(num);
+}
+
+function syncThirdLabel(){
+  const third=document.getElementById("third"), lbl=document.getElementById("thirdLabel"), v=fmt(parseFloat(third.value),2);
+  if(mode==="UMP") lbl.innerHTML='<span>income&nbsp;M</span><b id="thirdVal">'+v+'</b>';
+  else lbl.innerHTML='<span>target utility&nbsp;\u016b</span><b id="thirdVal">'+v+'</b>';
+  document.getElementById("kThirdLbl").textContent = mode==="UMP"?"income M":"target \u016b";
+  document.getElementById("lblLine").textContent = mode==="UMP"?"budget line":"iso-cost line";
+  document.getElementById("readTitle").textContent = mode==="UMP"?"UMP solution":"EMP solution";
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById("btnUMP").classList.toggle("active",m==="UMP");
+  document.getElementById("btnEMP").classList.toggle("active",m==="EMP");
+  const third=document.getElementById("third");
+  if(m==="UMP"){ third.min=0; third.max=2; third.step=0.05; if(+third.value>2) third.value=2; }
+  else { third.min=(FUNCS[cur].uMinEMP??0); third.max=FUNCS[cur].uMaxEMP; third.step=0.05; }
+  syncThirdLabel(); update();
+}
+
+function setFunc(f){
+  cur=f;
+  kx(document.getElementById("ufn"), FUNCS[f].tex, true);
+  const legKink=document.getElementById("legKink");
+  if(FUNCS[f].kinkLabel){ legKink.style.display="inline-flex"; document.getElementById("lblKink").innerHTML=FUNCS[f].kinkLabel; }
+  else legKink.style.display="none";
+  if(mode==="EMP"){ const third=document.getElementById("third"); third.min=(FUNCS[f].uMinEMP??0); third.max=FUNCS[f].uMaxEMP; if(+third.value>third.max) third.value=third.max; if(+third.value<third.min) third.value=third.min; }
+  document.getElementById("footnote").innerHTML =
+    "Axes fixed at 0\u20134 with ticks {0,1,2,3,4}; gold ticks mark the optimal coordinates and move with the sliders. " + FUNCS[f].footnote;
+  update();
+}
+
+function update(){
+  const px=parseFloat(document.getElementById("px").value);
+  const py=parseFloat(document.getElementById("py").value);
+  const third=parseFloat(document.getElementById("third").value);
+  document.getElementById("pxVal").textContent=fmt(px,2);
+  document.getElementById("pyVal").textContent=fmt(py,2);
+  const tv=document.getElementById("thirdVal"); if(tv) tv.textContent=fmt(third,2);
+  const s=FUNCS[cur].solve(px,py,third,mode);
+  draw(s,px,py); readout(s);
+}
+
+["px","py","third"].forEach(id=>document.getElementById(id).addEventListener("input",update));
+document.getElementById("btnUMP").addEventListener("click",()=>setMode("UMP"));
+document.getElementById("btnEMP").addEventListener("click",()=>setMode("EMP"));
+document.getElementById("ufunc").addEventListener("change",e=>setFunc(e.target.value));
+
+window.addEventListener("load",()=>{ setFunc("minlog"); });
+</script>
+</body>
+</html>

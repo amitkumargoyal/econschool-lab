@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satiated Preferences: UMP &amp; EMP Visualiser</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+  :root{
+    --violet:#5A1BA6; --terracotta:#A03A2C; --sage:#9CAF88; --cream:#FAF7F2;
+    --gold:#8A7A1F; --ink:#2b2620; --muted:#6b6457; --line:#e4ddcf;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--cream); color:var(--ink); font-family:Georgia,"Times New Roman",serif; line-height:1.5;}
+  .wrap{max-width:1040px; margin:0 auto; padding:12px 18px 18px;}
+  h1{color:var(--violet); font-size:20px; margin:0 0 2px; letter-spacing:.2px;}
+  .sub{color:var(--muted); font-size:13px; margin:0 0 8px;}
+  .ufn{font-size:16px; margin:2px 0 10px; min-height:26px;}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
+  .controls{display:flex; flex-wrap:wrap; gap:12px 24px; align-items:flex-start; margin-bottom:10px;}
+  .sliders{display:flex; flex-wrap:wrap; gap:10px 22px; align-items:flex-start; margin-bottom:10px;}
+  .ctl-lbl{font-size:13px;color:var(--muted);margin-bottom:6px;}
+  .csel{position:relative; min-width:240px; font-family:inherit;}
+  .csel-btn{width:100%; text-align:left; font-family:inherit; font-size:14px; padding:7px 32px 7px 10px; border:1px solid var(--violet); border-radius:8px; background:#fff; color:var(--violet); cursor:pointer;}
+  .csel-btn::after{content:""; position:absolute; right:12px; top:50%; width:7px; height:7px; border-right:2px solid var(--violet); border-bottom:2px solid var(--violet); transform:translateY(-70%) rotate(45deg);}
+  .csel-list{position:absolute; z-index:20; left:0; right:0; top:calc(100% + 4px); margin:0; padding:4px; list-style:none; background:#fff; border:1px solid var(--violet); border-radius:8px; box-shadow:0 6px 18px rgba(43,38,32,.12);}
+  .csel-list[hidden]{display:none;}
+  .csel-opt{font-size:14px; padding:8px 10px; border-radius:6px; color:var(--ink); cursor:pointer;}
+  .csel-opt:hover,.csel-opt[aria-selected="true"]{background:var(--cream); color:var(--violet);}
+  .modebox{display:flex; border:1px solid var(--violet); border-radius:8px; overflow:hidden;}
+  .modebox button{font-family:inherit; font-size:14px; padding:8px 16px; border:0; cursor:pointer; background:#fff; color:var(--violet);}
+  .modebox button.active{background:var(--violet); color:#fff;}
+  .slider{min-width:140px; flex:1 1 140px;}
+  .slider label{display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;}
+  .slider label b{color:var(--terracotta); font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%; accent-color:var(--violet);}
+  .layout{display:flex; gap:22px; flex-wrap:wrap;}
+  .plotcol{flex:1 1 460px; min-width:320px;}
+  .readcol{flex:1 1 280px; min-width:260px;}
+  svg{width:100%; height:auto; display:block; max-height:min(50vh,420px); margin:0 auto;}
+  .legend{display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:6px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:18px; height:0; border-top-width:3px; border-top-style:solid; display:inline-block;}
+  .fillsw{width:16px; height:12px; border-radius:3px; display:inline-block; background:rgba(90,27,166,.12); border:1px solid var(--terracotta);}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--gold); display:inline-block;}
+  .dotb{width:10px; height:10px; border-radius:50%; background:var(--sage); border:1px solid #5f6e4f; display:inline-block;}
+  .readcol h2{font-size:14px; color:var(--violet); margin:0 0 6px; text-transform:uppercase; letter-spacing:.6px;}
+  .kv{display:flex; justify-content:space-between; font-size:13.5px; padding:3px 0; border-bottom:1px dotted var(--line);}
+  .kv b{font-variant-numeric:tabular-nums;}
+  .regime{margin:8px 0; padding:8px 10px; background:var(--cream); border-left:4px solid var(--sage); border-radius:4px; font-size:13.5px;}
+  .slack{margin:8px 0 0; padding:6px 10px; background:#f3efe6; border-left:4px solid var(--gold); border-radius:4px; font-size:12.5px; color:var(--ink);}
+  .soln{margin-top:8px; font-size:14px;}
+  .note{font-size:11.5px; color:var(--muted); margin-top:8px;}
+  .footer{margin-top:10px; padding-top:8px; border-top:1px solid var(--sage); font-size:12.5px; color:var(--muted); text-align:center; letter-spacing:.3px;}
+  .footer a{color:var(--terracotta); text-decoration:none;}
+  .footer a:hover{text-decoration:underline;}
+
+  /* --- compact on phones: 2 sliders per row, shorter plot --- */
+  @media (max-width:560px){
+    .wrap{padding:10px 12px 14px;}
+    h1{font-size:18px;}
+    .sub{font-size:12px; margin:0 0 6px;}
+    .ufn{font-size:14px; min-height:22px; margin:2px 0 8px;}
+    svg{max-height:42vh;}
+    .controls{gap:8px 16px; margin-bottom:8px;}
+    .sliders{gap:8px 14px; margin-bottom:8px;}
+    .slider{min-width:46%; flex:1 1 46%;}
+    .layout{gap:14px;}
+    .regime,.soln{font-size:13px;}
+    .note{font-size:11px; margin-top:6px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Satiated Preferences — UMP &amp; EMP Visualiser</h1>
+  <p class="sub">A bliss point at (&delta;<sub>x</sub>, &delta;<sub>y</sub>), adjustable below: utility peaks there and falls with distance. Choose how distance is measured, then a problem.</p>
+  <div class="ufn" id="ufn"></div>
+
+  <div class="panel">
+    <div class="controls">
+      <div>
+        <div class="ctl-lbl">Utility function</div>
+        <div class="csel" id="ufunc">
+          <button type="button" class="csel-btn" id="uselBtn" aria-haspopup="listbox" aria-expanded="false"></button>
+          <ul class="csel-list" id="uselList" role="listbox" hidden>
+            <li class="csel-opt" role="option" data-value="circle">Euclidean bliss: &minus;(x &minus; &delta;<sub>x</sub>)&sup2; &minus; (y &minus; &delta;<sub>y</sub>)&sup2;</li>
+            <li class="csel-opt" role="option" data-value="diamond">Taxicab bliss: &minus;|x &minus; &delta;<sub>x</sub>| &minus; |y &minus; &delta;<sub>y</sub>|</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <div class="ctl-lbl">Problem</div>
+        <div class="modebox">
+          <button id="btnUMP" class="active">Maximise utility (UMP)</button>
+          <button id="btnEMP">Minimise expenditure (EMP)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sliders">
+      <div class="slider">
+        <label><span>price&nbsp;p<sub>x</sub></span><b id="pxVal">1.00</b></label>
+        <input type="range" id="px" min="0.5" max="2" step="0.05" value="1">
+      </div>
+      <div class="slider">
+        <label><span>price&nbsp;p<sub>y</sub></span><b id="pyVal">1.00</b></label>
+        <input type="range" id="py" min="0.5" max="2" step="0.05" value="1">
+      </div>
+      <div class="slider">
+        <label><span>bliss&nbsp;&delta;<sub>x</sub></span><b id="dxVal">2.00</b></label>
+        <input type="range" id="dx" min="0" max="4" step="0.05" value="2">
+      </div>
+      <div class="slider">
+        <label><span>bliss&nbsp;&delta;<sub>y</sub></span><b id="dyVal">1.00</b></label>
+        <input type="range" id="dy" min="0" max="4" step="0.05" value="1">
+      </div>
+      <div class="slider">
+        <label id="thirdLabel"><span>income&nbsp;M</span><b id="thirdVal">4.0</b></label>
+        <input type="range" id="third" min="0" max="16" step="0.05" value="4">
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="plotcol">
+        <svg id="plot" viewBox="0 0 540 532" role="img" aria-label="Satiated preference diagram"></svg>
+        <div class="legend">
+          <span><i class="swatch" style="border-top-color:var(--violet)"></i> <i id="lblLine">budget line</i></span>
+          <span><i class="swatch" style="border-top-color:var(--terracotta)"></i> indifference curve</span>
+          <span><i class="fillsw"></i> upper-contour set u &ge; level</span>
+          <span><i class="dot"></i> optimal bundle</span>
+          <span><i class="dotb"></i> bliss point</span>
+        </div>
+      </div>
+      <div class="readcol">
+        <h2 id="readTitle">Solution</h2>
+        <div class="kv"><span>p<sub>x</sub> / p<sub>y</sub></span><b id="kRatio"></b></div>
+        <div class="kv"><span id="kThirdLbl">income M</span><b id="kThird"></b></div>
+        <div class="kv" id="kvLevel"><span id="kLevelLbl">utility u*</span><b id="kLevel"></b></div>
+        <div class="kv" id="kvObj"><span id="kObjLbl">spending</span><b id="kObj"></b></div>
+        <div class="regime" id="regime"></div>
+        <div class="slack" id="slack" style="display:none"></div>
+        <div class="soln" id="soln"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" id="footnote"></p>
+
+  <footer class="footer">
+    Built with Claude &nbsp;·&nbsp; Amit Goyal &nbsp;·&nbsp;
+    <a href="mailto:amit@econschool.in">amit@econschool.in</a>
+  </footer>
+</div>
+
+<script>
+"use strict";
+let mode = "UMP";
+let cur = "circle";
+const EPS = 1e-9;
+let DX = 2, DY = 1;                    // bliss point (delta_x, delta_y), driven by sliders
+const fmt = (n,d=2)=>Number(n.toFixed(d)).toString();
+
+/* ---------- geometry ---------- */
+const AX = 5;                          // equal range on both axes -> circles stay circular
+const P = {l:56, r:24, t:24, b:48};
+const W=540, H=532, plotW=W-P.l-P.r, plotH=H-P.t-P.b;   // plotW === plotH (square)
+const xPix = x => P.l + (x/AX)*plotW;
+const yPix = y => P.t + plotH - (y/AX)*plotH;
+const FIXED_TICKS=[0,1,2,3,4,5];
+const clamp = v => Math.max(0, Math.min(AX, v));
+
+function el(tag, attrs){
+  const e=document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+/* ================= per-function registry ================= */
+const FUNCS = {
+
+  /* ---------- Euclidean (L2) bliss: u = -(x-dx)^2 - (y-dy)^2 ; circular ICs ---------- */
+  circle: {
+    tex: "u(x,y)=-(x-\\delta_x)^2-(y-\\delta_y)^2",
+    uMin(){ return -(DX*DX+DY*DY); },           // origin reached at u-bar <= -(dx^2+dy^2)
+    footnote: "Distance measured in the Euclidean (L\u00B2) metric \u2014 indifference curves are circles around the bliss point. In UMP, when the bliss point is affordable the consumer buys it and the budget does not bind (Walras' law and local non-satiation both fail). When it is not affordable the optimum is the budget-line point closest to the bliss point.",
+    radius: lvl => Math.sqrt(Math.max(0,-lvl)),
+    contour(svg,lvl){
+      const r=this.radius(lvl); if(r<=EPS) return;
+      svg.appendChild(el("circle",{cx:xPix(DX),cy:yPix(DY),r:(r/AX)*plotW,
+        fill:"rgba(90,27,166,0.12)",stroke:"var(--terracotta)","stroke-width":2.4,"clip-path":"url(#pc)"}));
+    },
+    solve(px,py,third,mode){
+      const dx=DX, dy=DY, ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq,slack:null};
+      if(mode==="UMP"){
+        const M=third, cost=px*dx+py*dy;
+        if(cost<=M+EPS){
+          o.pts=[[dx,dy]]; o.slack=M-cost;
+          o.regime="Bliss point (&delta;<sub>x</sub>, &delta;<sub>y</sub>) is affordable: p<sub>x</sub>&delta;<sub>x</sub> + p<sub>y</sub>&delta;<sub>y</sub> &le; M. The consumer buys the bliss point and the <b>budget does not bind</b>.";
+          o.tex="(\\delta_x,\\ \\delta_y)";
+        } else {
+          const lam=(cost-M)/(px*px+py*py), xf=dx-px*lam, yf=dy-py*lam;
+          if(xf>=-EPS && yf>=-EPS){
+            o.pts=[[xf,yf]];
+            o.regime="Bliss point is <b>not</b> affordable &rarr; spend all income. The optimum is the budget-line point closest to the bliss point (the circle is tangent to the line there).";
+            o.tex="\\left(\\delta_x-\\dfrac{p_x\\,(p_x\\delta_x+p_y\\delta_y-M)}{p_x^2+p_y^2},\\ \\delta_y-\\dfrac{p_y\\,(p_x\\delta_x+p_y\\delta_y-M)}{p_x^2+p_y^2}\\right)";
+          } else if(xf<0){
+            o.pts=[[0, M/py]];
+            o.regime="Bliss not affordable, and the closest budget point falls left of the y-axis &rarr; corner (0, M/p<sub>y</sub>).";
+            o.tex="\\left(0,\\ \\dfrac{M}{p_y}\\right)";
+          } else {
+            o.pts=[[M/px, 0]];
+            o.regime="Bliss not affordable, and the closest budget point falls below the x-axis &rarr; corner (M/p<sub>x</sub>, 0).";
+            o.tex="\\left(\\dfrac{M}{p_x},\\ 0\\right)";
+          }
+        }
+        const b=o.pts[0]; o.level=-((b[0]-dx)**2+(b[1]-dy)**2);
+        o.line=M; o.objVal=px*b[0]+py*b[1]; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (x&#7496;, y&#7496;):";
+      } else {
+        const u=third, R2=-u, S=dx*dx+dy*dy;
+        if(Math.abs(u)<EPS){
+          o.pts=[[dx,dy]]; o.regime="&#363; = 0 &rarr; only the bliss point reaches utility 0. Hicksian demand is the bliss point.";
+          o.tex="(\\delta_x,\\ \\delta_y)";
+        } else if(R2>=S-EPS){
+          o.pts=[[0,0]]; o.regime="&#363; &le; &minus;(&delta;<sub>x</sub>&#178;+&delta;<sub>y</sub>&#178;) &rarr; the target disk contains the origin, so the cheapest feasible point is (0, 0) at zero cost.";
+          o.tex="(0,\\ 0)";
+        } else if(R2>=dx*dx-EPS && (dx/Math.sqrt(R2-dx*dx)) <= ratio){
+          o.pts=[[0, dy-Math.sqrt(R2-dx*dx)]];
+          o.regime="The target disk meets the y-axis and p<sub>x</sub>/p<sub>y</sub> is large enough &rarr; the cheapest point is the y-axis corner.";
+          o.tex="\\left(0,\\ \\delta_y-\\sqrt{-\\bar u-\\delta_x^2}\\right)";
+        } else if(R2>=dy*dy-EPS && (Math.sqrt(R2-dy*dy)/dy) >= ratio){
+          o.pts=[[dx-Math.sqrt(R2-dy*dy), 0]];
+          o.regime="The target disk meets the x-axis and p<sub>x</sub>/p<sub>y</sub> is small enough &rarr; the cheapest point is the x-axis corner.";
+          o.tex="\\left(\\delta_x-\\sqrt{-\\bar u-\\delta_y^2},\\ 0\\right)";
+        } else {
+          const den=px*px+py*py;
+          o.pts=[[dx-Math.sqrt(R2*px*px/den), dy-Math.sqrt(R2*py*py/den)]];
+          o.regime="Interior solution: the cheapest point on the target circle, reached by moving from the bliss point toward the origin along &minus;(p<sub>x</sub>, p<sub>y</sub>).";
+          o.tex="\\left(\\delta_x-\\sqrt{\\dfrac{-\\bar u\\,p_x^2}{p_x^2+p_y^2}},\\ \\delta_y-\\sqrt{\\dfrac{-\\bar u\\,p_y^2}{p_x^2+p_y^2}}\\right)";
+        }
+        const b=o.pts[0], e=px*b[0]+py*b[1];
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target &#363;";
+        o.head="Hicksian demand (x&#688;, y&#688;):";
+      }
+      return o;
+    }
+  },
+
+  /* ---------- Taxicab (L1) bliss: u = -|x-dx| - |y-dy| ; diamond ICs ---------- */
+  diamond: {
+    tex: "u(x,y)=-\\lvert x-\\delta_x\\rvert-\\lvert y-\\delta_y\\rvert",
+    uMin(){ return -(DX+DY); },                 // origin reached at u-bar <= -(dx+dy)
+    footnote: "Distance measured in the taxicab (L\u00B9) metric \u2014 indifference curves are diamonds around the bliss point. The optimum moves to whichever diamond vertex points toward the cheaper good. When p<sub>x</sub> = p<sub>y</sub> the budget line is parallel to a diamond facet, so an <i>entire edge</i> of bundles is optimal \u2014 a continuum, where the Euclidean version gives a single point.",
+    radius: lvl => Math.max(0,-lvl),
+    contour(svg,lvl){
+      const r=this.radius(lvl); if(r<=EPS) return;
+      const pts=[[DX+r,DY],[DX,DY+r],[DX-r,DY],[DX,DY-r]].map(p=>`${xPix(p[0])},${yPix(p[1])}`).join(" ");
+      svg.appendChild(el("polygon",{points:pts,fill:"rgba(90,27,166,0.12)",
+        stroke:"var(--terracotta)","stroke-width":2.4,"clip-path":"url(#pc)"}));
+    },
+    solve(px,py,third,mode){
+      const dx=DX, dy=DY, ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq,slack:null};
+      if(mode==="UMP"){
+        const M=third, cost=px*dx+py*dy;
+        if(cost<=M+EPS){
+          o.pts=[[dx,dy]]; o.slack=M-cost;
+          o.regime="Bliss point (&delta;<sub>x</sub>, &delta;<sub>y</sub>) is affordable: p<sub>x</sub>&delta;<sub>x</sub> + p<sub>y</sub>&delta;<sub>y</sub> &le; M. The consumer buys the bliss point and the <b>budget does not bind</b>.";
+          o.tex="(\\delta_x,\\ \\delta_y)";
+        } else if(eq){
+          const t=dx+dy-M/px;
+          const ex=(dx-t>=-EPS)?[dx-t,dy]:[0,M/py];
+          const ey=(dy-t>=-EPS)?[dx,dy-t]:[M/px,0];
+          o.pts=(Math.abs(ex[0]-ey[0])<1e-9 && Math.abs(ex[1]-ey[1])<1e-9)?[ex]:[ex,ey];
+          o.regime="p<sub>x</sub> = p<sub>y</sub> &rarr; the budget line is parallel to a diamond facet, so the <b>entire lower-left edge</b> of the optimal diamond is optimal (a continuum of bundles).";
+          o.tex="\\text{any }(x,y)\\ \\text{on}\\ x+y=\\tfrac{M}{p}\\ \\text{within the diamond}";
+        } else if(px>py){
+          if(M>=py*dy-EPS){ const t=(cost-M)/px; o.pts=[[dx-t,dy]];
+            o.regime="Not affordable, p<sub>x</sub> &gt; p<sub>y</sub> &rarr; move straight left from the bliss point onto the budget line.";
+            o.tex="\\left(\\delta_x-\\dfrac{p_x\\delta_x+p_y\\delta_y-M}{p_x},\\ \\delta_y\\right)"; }
+          else { o.pts=[[0,M/py]];
+            o.regime="Not affordable, p<sub>x</sub> &gt; p<sub>y</sub> and M &lt; p<sub>y</sub>&delta;<sub>y</sub> &rarr; corner on the y-axis.";
+            o.tex="\\left(0,\\ \\dfrac{M}{p_y}\\right)"; }
+        } else {
+          if(M>=px*dx-EPS){ const t=(cost-M)/py; o.pts=[[dx,dy-t]];
+            o.regime="Not affordable, p<sub>x</sub> &lt; p<sub>y</sub> &rarr; move straight down from the bliss point onto the budget line.";
+            o.tex="\\left(\\delta_x,\\ \\delta_y-\\dfrac{p_x\\delta_x+p_y\\delta_y-M}{p_y}\\right)"; }
+          else { o.pts=[[M/px,0]];
+            o.regime="Not affordable, p<sub>x</sub> &lt; p<sub>y</sub> and M &lt; p<sub>x</sub>&delta;<sub>x</sub> &rarr; corner on the x-axis.";
+            o.tex="\\left(\\dfrac{M}{p_x},\\ 0\\right)"; }
+        }
+        const b=o.pts[0]; o.level=-(Math.abs(b[0]-dx)+Math.abs(b[1]-dy));
+        o.line=M; o.objVal=px*b[0]+py*b[1]; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (x&#7496;, y&#7496;):";
+      } else {
+        const u=third, r=-u, S=dx+dy;
+        if(Math.abs(u)<EPS){
+          o.pts=[[dx,dy]]; o.regime="&#363; = 0 &rarr; Hicksian demand is the bliss point.";
+          o.tex="(\\delta_x,\\ \\delta_y)";
+        } else if(r>=S-EPS){
+          o.pts=[[0,0]]; o.regime="&#363; &le; &minus;(&delta;<sub>x</sub>+&delta;<sub>y</sub>) &rarr; the target diamond contains the origin, so the cheapest feasible point is (0, 0) at zero cost.";
+          o.tex="(0,\\ 0)";
+        } else if(eq){
+          const ex=(dx-r>=-EPS)?[dx-r,dy]:[0,dx+dy-r];
+          const ey=(dy-r>=-EPS)?[dx,dy-r]:[dx+dy-r,0];
+          o.pts=(Math.abs(ex[0]-ey[0])<1e-9 && Math.abs(ex[1]-ey[1])<1e-9)?[ex]:[ex,ey];
+          o.regime="p<sub>x</sub> = p<sub>y</sub> &rarr; the iso-cost line is parallel to a diamond facet: the <b>entire lower-left edge</b> of the target diamond minimises cost.";
+          o.tex="\\text{any }(x,y)\\ \\text{on the lower-left facet of the diamond}";
+        } else if(px>py){
+          if(r<=dx+EPS){ o.pts=[[dx-r,dy]];
+            o.regime="p<sub>x</sub> &gt; p<sub>y</sub> &rarr; cheapest point is the left vertex of the target diamond.";
+            o.tex="\\left(\\delta_x+\\bar u,\\ \\delta_y\\right)"; }
+          else { o.pts=[[0,dx+dy-r]];
+            o.regime="p<sub>x</sub> &gt; p<sub>y</sub>, left vertex off the quadrant &rarr; corner on the y-axis.";
+            o.tex="\\left(0,\\ \\delta_x+\\delta_y+\\bar u\\right)"; }
+        } else {
+          if(r<=dy+EPS){ o.pts=[[dx,dy-r]];
+            o.regime="p<sub>x</sub> &lt; p<sub>y</sub> &rarr; cheapest point is the bottom vertex of the target diamond.";
+            o.tex="\\left(\\delta_x,\\ \\delta_y+\\bar u\\right)"; }
+          else { o.pts=[[dx+dy-r,0]];
+            o.regime="p<sub>x</sub> &lt; p<sub>y</sub>, bottom vertex off the quadrant &rarr; corner on the x-axis.";
+            o.tex="\\left(\\delta_x+\\delta_y+\\bar u,\\ 0\\right)"; }
+        }
+        const b=o.pts[0], e=px*b[0]+py*b[1];
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target &#363;";
+        o.head="Hicksian demand (x&#688;, y&#688;):";
+      }
+      return o;
+    }
+  }
+};
+
+function clipBudget(px,py,B){
+  const cand=[]; let v;
+  v=B/py;          if(v>=-EPS && v<=AX+EPS) cand.push([0,clamp(v)]);
+  v=(B-px*AX)/py;  if(v>=-EPS && v<=AX+EPS) cand.push([AX,clamp(v)]);
+  v=B/px;          if(v>=-EPS && v<=AX+EPS) cand.push([clamp(v),0]);
+  v=(B-py*AX)/px;  if(v>=-EPS && v<=AX+EPS) cand.push([clamp(v),AX]);
+  const u=[]; for(const p of cand){ if(!u.some(q=>Math.abs(q[0]-p[0])<1e-6 && Math.abs(q[1]-p[1])<1e-6)) u.push(p); }
+  return u.length>=2 ? [u[0],u[1]] : null;
+}
+
+function fixedTick(svg,val,axis){
+  if(axis==="x"){
+    svg.appendChild(el("line",{x1:xPix(val),y1:P.t+plotH,x2:xPix(val),y2:P.t+plotH+5,stroke:"#3a342b","stroke-width":1.2}));
+    const t=el("text",{x:xPix(val),y:P.t+plotH+18,fill:"#7a7466","font-size":12,"text-anchor":"middle"}); t.textContent=val; svg.appendChild(t);
+  } else {
+    if(val===0) return;
+    svg.appendChild(el("line",{x1:P.l-5,y1:yPix(val),x2:P.l,y2:yPix(val),stroke:"#3a342b","stroke-width":1.2}));
+    const t=el("text",{x:P.l-12,y:yPix(val)+4,fill:"#7a7466","font-size":12,"text-anchor":"end"}); t.textContent=val; svg.appendChild(t);
+  }
+}
+function dynTick(svg,val,axis){
+  if(val<0.05 || val>AX) return;
+  if(axis==="x"){
+    svg.appendChild(el("line",{x1:xPix(val),y1:P.t+plotH,x2:xPix(val),y2:P.t+plotH+5,stroke:"var(--gold)","stroke-width":1.6}));
+    const t=el("text",{x:xPix(val),y:P.t+plotH+30,fill:"var(--gold)","font-size":11,"text-anchor":"middle","font-weight":"bold"}); t.textContent=fmt(val); svg.appendChild(t);
+  } else {
+    svg.appendChild(el("line",{x1:P.l-5,y1:yPix(val),x2:P.l,y2:yPix(val),stroke:"var(--gold)","stroke-width":1.6}));
+    const t=el("text",{x:P.l-38,y:yPix(val)+4,fill:"var(--gold)","font-size":11,"text-anchor":"middle","font-weight":"bold"}); t.textContent=fmt(val); svg.appendChild(t);
+  }
+}
+
+function blissGuides(svg){
+  svg.appendChild(el("line",{x1:xPix(DX),y1:yPix(DY),x2:xPix(DX),y2:yPix(0),stroke:"var(--sage)","stroke-width":1.3,"stroke-dasharray":"5 4"}));
+  svg.appendChild(el("line",{x1:xPix(DX),y1:yPix(DY),x2:xPix(0),y2:yPix(DY),stroke:"var(--sage)","stroke-width":1.3,"stroke-dasharray":"5 4"}));
+  svg.appendChild(el("circle",{cx:xPix(DX),cy:yPix(DY),r:5,fill:"var(--sage)",stroke:"#5f6e4f","stroke-width":1.3}));
+  const t=el("text",{x:xPix(DX)+9,y:yPix(DY)-7,fill:"#5f6e4f","font-size":12,"font-style":"italic"}); t.textContent="bliss point"; svg.appendChild(t);
+}
+
+function draw(s,px,py){
+  const svg=document.getElementById("plot"); svg.innerHTML="";
+  svg.appendChild(el("rect",{x:P.l,y:P.t,width:plotW,height:plotH,fill:"#fff"}));
+  for(const t of FIXED_TICKS){ if(t>0){
+    svg.appendChild(el("line",{x1:xPix(t),y1:P.t,x2:xPix(t),y2:P.t+plotH,stroke:"#f1ebdd"}));
+    svg.appendChild(el("line",{x1:P.l,y1:yPix(t),x2:P.l+plotW,y2:yPix(t),stroke:"#f1ebdd"}));
+  }}
+
+  const defs=el("defs",{});
+  const cp=el("clipPath",{id:"pc"}); cp.appendChild(el("rect",{x:P.l,y:P.t,width:plotW,height:plotH})); defs.appendChild(cp);
+  const m=el("marker",{id:"arr",markerWidth:8,markerHeight:8,refX:6,refY:3,orient:"auto"});
+  m.appendChild(el("path",{d:"M0,0 L6,3 L0,6 Z",fill:"#3a342b"})); defs.appendChild(m);
+  svg.appendChild(defs);
+
+  FUNCS[cur].contour(svg, s.level);
+
+  svg.appendChild(el("line",{x1:P.l,y1:P.t+plotH,x2:P.l+plotW+6,y2:P.t+plotH,stroke:"#3a342b","stroke-width":1.4,"marker-end":"url(#arr)"}));
+  svg.appendChild(el("line",{x1:P.l,y1:P.t+plotH,x2:P.l,y2:P.t-6,stroke:"#3a342b","stroke-width":1.4,"marker-end":"url(#arr)"}));
+  for(const t of FIXED_TICKS){ fixedTick(svg,t,"x"); fixedTick(svg,t,"y"); }
+  const xn=el("text",{x:P.l+plotW,y:P.t+plotH+44,fill:"#3a342b","font-size":14,"font-style":"italic","text-anchor":"end"}); xn.textContent="x \u2192"; svg.appendChild(xn);
+  const yn=el("text",{x:P.l-40,y:P.t+12,fill:"#3a342b","font-size":14,"font-style":"italic"}); yn.textContent="y \u2191"; svg.appendChild(yn);
+
+  if(s.line>EPS){ const seg=clipBudget(px,py,s.line); if(seg)
+    svg.appendChild(el("line",{x1:xPix(seg[0][0]),y1:yPix(seg[0][1]),x2:xPix(seg[1][0]),y2:yPix(seg[1][1]),stroke:"var(--violet)","stroke-width":2.6})); }
+
+  blissGuides(svg);
+
+  for(const [ox,oy] of s.pts){
+    svg.appendChild(el("circle",{cx:xPix(clamp(ox)),cy:yPix(clamp(oy)),r:5.5,fill:"var(--gold)",stroke:"#fff","stroke-width":1.4}));
+    dynTick(svg,ox,"x"); dynTick(svg,oy,"y");
+  }
+}
+
+function kx(elm,tex,disp){ if(window.katex){katex.render(tex,elm,{displayMode:!!disp,throwOnError:false});} else elm.textContent=tex; }
+
+function readout(s){
+  document.getElementById("kRatio").textContent = fmt(s.ratio,2)+(s.eq?"  (= 1)":(s.ratio<1?"  (< 1)":"  (> 1)"));
+  document.getElementById("kThird").textContent = fmt(parseFloat(document.getElementById("third").value), mode==="UMP"?1:2);
+  document.getElementById("kLevelLbl").textContent = s.levelLabel;
+  document.getElementById("kLevel").textContent = fmt(s.level,2);
+  document.getElementById("kObjLbl").textContent = s.objLabel;
+  document.getElementById("kObj").textContent = fmt(s.objVal,2);
+  document.getElementById("kvLevel").style.display = (mode==="UMP") ? "flex" : "none";
+  document.getElementById("kvObj").style.display = "flex";
+  document.getElementById("regime").innerHTML = s.regime;
+
+  const slackBox=document.getElementById("slack");
+  if(mode==="UMP" && s.slack!=null && s.slack>1e-4){
+    slackBox.style.display="block";
+    slackBox.innerHTML="<b>Budget slack:</b> M &minus; spending = "+fmt(s.slack,2)+". Walras' law fails \u2014 a satiated consumer need not spend all income.";
+  } else slackBox.style.display="none";
+
+  const soln=document.getElementById("soln"); soln.innerHTML="";
+  const head=document.createElement("div"); head.style.cssText="font-size:13px;color:var(--muted);margin-bottom:4px;"; head.innerHTML=s.head; soln.appendChild(head);
+  const box=document.createElement("div"); soln.appendChild(box); kx(box,s.tex,true);
+  const num=document.createElement("div"); num.style.cssText="margin-top:8px;font-size:14px;";
+  num.innerHTML=s.pts.map(p=>`(${fmt(p[0])}, ${fmt(p[1])})`).join("&nbsp; and &nbsp;"); soln.appendChild(num);
+}
+
+function syncThirdLabel(){
+  const third=document.getElementById("third"), lbl=document.getElementById("thirdLabel"),
+        v=fmt(parseFloat(third.value), mode==="UMP"?1:2);
+  if(mode==="UMP") lbl.innerHTML='<span>income&nbsp;M</span><b id="thirdVal">'+v+'</b>';
+  else lbl.innerHTML='<span>target utility&nbsp;\u016b</span><b id="thirdVal">'+v+'</b>';
+  document.getElementById("kThirdLbl").textContent = mode==="UMP"?"income M":"target \u016b";
+  document.getElementById("lblLine").textContent = mode==="UMP"?"budget line":"iso-cost line";
+  document.getElementById("readTitle").textContent = mode==="UMP"?"UMP solution":"EMP solution";
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById("btnUMP").classList.toggle("active",m==="UMP");
+  document.getElementById("btnEMP").classList.toggle("active",m==="EMP");
+  const third=document.getElementById("third");
+  if(m==="UMP"){ third.min=0; third.max=16; third.step=0.05; if(+third.value>16||+third.value<0) third.value=4; }
+  else { third.min=FUNCS[cur].uMin(); third.max=0; third.step=0.05; if(+third.value>0||+third.value<third.min) third.value=-1; }
+  syncThirdLabel(); update();
+}
+
+function setFunc(f){
+  cur=f;
+  kx(document.getElementById("ufn"), FUNCS[f].tex, true);
+  if(mode==="EMP"){ const third=document.getElementById("third"); third.min=FUNCS[f].uMin(); third.max=0; if(+third.value<third.min) third.value=third.min; if(+third.value>0) third.value=-1; }
+  document.getElementById("footnote").innerHTML =
+    "Axes fixed at 0\u20135 with ticks {0,1,2,3,4,5}, equal-scaled; gold ticks mark the optimal coordinates and move with the sliders. " + FUNCS[f].footnote;
+  update();
+}
+
+function update(){
+  DX=parseFloat(document.getElementById("dx").value);
+  DY=parseFloat(document.getElementById("dy").value);
+  document.getElementById("dxVal").textContent=fmt(DX,2);
+  document.getElementById("dyVal").textContent=fmt(DY,2);
+  const thirdEl=document.getElementById("third");
+  if(mode==="EMP"){ thirdEl.min=FUNCS[cur].uMin(); if(+thirdEl.value<+thirdEl.min) thirdEl.value=thirdEl.min; }
+  const px=parseFloat(document.getElementById("px").value);
+  const py=parseFloat(document.getElementById("py").value);
+  const third=parseFloat(thirdEl.value);
+  document.getElementById("pxVal").textContent=fmt(px,2);
+  document.getElementById("pyVal").textContent=fmt(py,2);
+  const tv=document.getElementById("thirdVal"); if(tv) tv.textContent=fmt(third, mode==="UMP"?1:2);
+  const s=FUNCS[cur].solve(px,py,third,mode);
+  draw(s,px,py); readout(s);
+}
+
+["px","py","third","dx","dy"].forEach(id=>document.getElementById(id).addEventListener("input",update));
+document.getElementById("btnUMP").addEventListener("click",()=>setMode("UMP"));
+document.getElementById("btnEMP").addEventListener("click",()=>setMode("EMP"));
+
+/* custom dropdown (native <option> can't render subscripts) */
+const _uBtn=document.getElementById("uselBtn"), _uList=document.getElementById("uselList");
+const _uOpts=[..._uList.querySelectorAll(".csel-opt")];
+const uselClose=()=>{ _uList.hidden=true; _uBtn.setAttribute("aria-expanded","false"); };
+const uselOpen =()=>{ _uList.hidden=false; _uBtn.setAttribute("aria-expanded","true"); };
+function selectFunc(v){
+  const opt=_uOpts.find(o=>o.dataset.value===v)||_uOpts[0];
+  _uBtn.innerHTML=opt.innerHTML;
+  _uOpts.forEach(o=>o.setAttribute("aria-selected", o===opt?"true":"false"));
+  setFunc(v);
+}
+_uBtn.addEventListener("click",()=>{ _uList.hidden?uselOpen():uselClose(); });
+_uOpts.forEach(o=>o.addEventListener("click",()=>{ selectFunc(o.dataset.value); uselClose(); }));
+document.addEventListener("click",e=>{ if(!document.getElementById("ufunc").contains(e.target)) uselClose(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") uselClose(); });
+
+window.addEventListener("load",()=>{ selectFunc("circle"); setMode("UMP"); });
+</script>
+</body>
+</html>

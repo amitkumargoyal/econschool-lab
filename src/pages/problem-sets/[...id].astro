@@ -1,0 +1,34 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection, render } from 'astro:content';
+import { subjects } from '../../data/subjects';
+import { withBase } from '../../utils';
+
+export async function getStaticPaths() {
+  const sets = await getCollection('problemSets', ({ data }) => !data.draft);
+  return sets.map((ps) => ({ params: { id: ps.id }, props: { ps } }));
+}
+
+const { ps } = Astro.props;
+const { Content } = await render(ps);
+const subjectTitle = subjects.find((s) => s.id === ps.data.subject)?.title;
+---
+
+<Base title={ps.data.title}>
+  <article class="prose">
+    <p class="eyebrow">
+      <a href={withBase(`/${ps.data.subject}/`)}>{subjectTitle}</a> · {ps.data.topic} · Problem set
+    </p>
+    <h1>{ps.data.title}</h1>
+    <Content />
+  </article>
+</Base>
+
+<style>
+  article {
+    padding-top: 2.2rem;
+  }
+  .eyebrow a {
+    color: inherit;
+  }
+</style>

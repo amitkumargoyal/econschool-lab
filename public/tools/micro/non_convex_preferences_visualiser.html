@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Non-convex Preferences: UMP &amp; EMP Visualiser</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+  :root{
+    --violet:#5A1BA6; --terracotta:#A03A2C; --sage:#9CAF88; --cream:#FAF7F2;
+    --gold:#8A7A1F; --ink:#2b2620; --muted:#6b6457; --line:#e4ddcf;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--cream); color:var(--ink); font-family:Georgia,"Times New Roman",serif; line-height:1.5;}
+  .wrap{max-width:1040px; margin:0 auto; padding:12px 18px 18px;}
+  h1{color:var(--violet); font-size:20px; margin:0 0 2px; letter-spacing:.2px;}
+  .sub{color:var(--muted); font-size:13px; margin:0 0 8px;}
+  .ufn{font-size:16px; margin:2px 0 10px; min-height:26px;}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
+  .controls{display:flex; flex-wrap:wrap; gap:12px 24px; align-items:flex-start; margin-bottom:10px;}
+  .sliders{display:flex; flex-wrap:wrap; gap:10px 22px; align-items:flex-start; margin-bottom:10px;}
+  .ctl-lbl{font-size:13px;color:var(--muted);margin-bottom:6px;}
+  select{font-family:inherit; font-size:14px; padding:7px 10px; border:1px solid var(--violet); border-radius:8px; background:#fff; color:var(--violet); min-width:230px;}
+  .modebox{display:flex; border:1px solid var(--violet); border-radius:8px; overflow:hidden;}
+  .modebox button{font-family:inherit; font-size:14px; padding:8px 16px; border:0; cursor:pointer; background:#fff; color:var(--violet);}
+  .modebox button.active{background:var(--violet); color:#fff;}
+  .slider{min-width:140px; flex:1 1 140px;}
+  .slider label{display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;}
+  .slider label b{color:var(--terracotta); font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%; accent-color:var(--violet);}
+  .layout{display:flex; gap:22px; flex-wrap:wrap;}
+  .plotcol{flex:1 1 460px; min-width:320px;}
+  .readcol{flex:1 1 280px; min-width:260px;}
+  svg{width:100%; height:auto; display:block; max-height:min(50vh,420px); margin:0 auto;}
+  .legend{display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:6px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:18px; height:0; border-top-width:3px; border-top-style:solid; display:inline-block;}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--gold); display:inline-block;}
+  .readcol h2{font-size:14px; color:var(--violet); margin:0 0 6px; text-transform:uppercase; letter-spacing:.6px;}
+  .kv{display:flex; justify-content:space-between; font-size:13.5px; padding:3px 0; border-bottom:1px dotted var(--line);}
+  .kv b{font-variant-numeric:tabular-nums;}
+  .regime{margin:8px 0; padding:8px 10px; background:var(--cream); border-left:4px solid var(--sage); border-radius:4px; font-size:13.5px;}
+  .soln{margin-top:8px; font-size:14px;}
+  .note{font-size:11.5px; color:var(--muted); margin-top:8px;}
+  .footer{margin-top:10px; padding-top:8px; border-top:1px solid var(--sage); font-size:12.5px; color:var(--muted); text-align:center; letter-spacing:.3px;}
+  .footer a{color:var(--terracotta); text-decoration:none;}
+  .footer a:hover{text-decoration:underline;}
+
+  /* --- compact on phones: 2 sliders per row, shorter plot --- */
+  @media (max-width:560px){
+    .wrap{padding:10px 12px 14px;}
+    h1{font-size:18px;}
+    .sub{font-size:12px; margin:0 0 6px;}
+    .ufn{font-size:14px; min-height:22px; margin:2px 0 8px;}
+    svg{max-height:42vh;}
+    .controls{gap:8px 16px; margin-bottom:8px;}
+    .sliders{gap:8px 14px; margin-bottom:8px;}
+    .slider{min-width:46%; flex:1 1 46%;}
+    .layout{gap:14px;}
+    .regime,.soln{font-size:13px;}
+    .note{font-size:11px; margin-top:6px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Non-convex Preferences — UMP &amp; EMP Visualiser</h1>
+  <p class="sub">Four utilities whose upper-contour sets are non-convex. Choose one, then a problem.</p>
+  <div class="ufn" id="ufn"></div>
+
+  <div class="panel">
+    <div class="controls">
+      <div>
+        <div class="ctl-lbl">Utility function</div>
+        <select id="ufunc">
+          <option value="maxmin">max-min:  max{ min(x,2y), min(2x,y) }</option>
+          <option value="sumsq">Euclidean:  √(x² + y²)</option>
+          <option value="maxxy">max:  max{ x, y }</option>
+          <option value="lse">log-sum-exp:  ln(eˣ + eʸ − 1)</option>
+        </select>
+      </div>
+      <div>
+        <div class="ctl-lbl">Problem</div>
+        <div class="modebox">
+          <button id="btnUMP" class="active">Maximise utility (UMP)</button>
+          <button id="btnEMP">Minimise expenditure (EMP)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sliders">
+      <div class="slider">
+        <label><span>price&nbsp;p<sub>X</sub></span><b id="pxVal">0.25</b></label>
+        <input type="range" id="px" min="0.25" max="4" step="0.05" value="0.25">
+      </div>
+      <div class="slider">
+        <label><span>price&nbsp;p<sub>Y</sub></span><b id="pyVal">0.50</b></label>
+        <input type="range" id="py" min="0.25" max="4" step="0.05" value="0.50">
+      </div>
+      <div class="slider">
+        <label id="thirdLabel"><span>income&nbsp;M</span><b id="thirdVal">10.0</b></label>
+        <input type="range" id="third" min="0" max="10" step="0.1" value="10">
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="plotcol">
+        <svg id="plot" viewBox="0 0 540 532" role="img" aria-label="Non-convex preference diagram"></svg>
+        <div class="legend">
+          <span><i class="swatch" style="border-top-color:var(--violet)"></i> <i id="lblLine">budget line</i></span>
+          <span><i class="swatch" style="border-top-color:var(--terracotta)"></i> indifference curve</span>
+          <span><i class="dot"></i> optimal bundle</span>
+          <span id="legRays"><i class="swatch" style="border-top-color:var(--sage);border-top-style:dashed"></i> rays y=2x, y=x, y=x/2</span>
+        </div>
+      </div>
+      <div class="readcol">
+        <h2 id="readTitle">Solution</h2>
+        <div class="kv"><span>p<sub>X</sub> / p<sub>Y</sub></span><b id="kRatio"></b></div>
+        <div class="kv"><span id="kThirdLbl">income M</span><b id="kThird"></b></div>
+        <div class="kv" id="kvLevel"><span id="kLevelLbl">utility u*</span><b id="kLevel"></b></div>
+        <div class="kv" id="kvObj"><span id="kObjLbl">spending</span><b id="kObj"></b></div>
+        <div class="regime" id="regime"></div>
+        <div class="soln" id="soln"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" id="footnote"></p>
+
+  <footer class="footer">
+    Built with Claude &nbsp;·&nbsp; Amit Goyal &nbsp;·&nbsp;
+    <a href="mailto:amit@econschool.in">amit@econschool.in</a>
+  </footer>
+</div>
+
+<script>
+"use strict";
+let mode = "UMP";
+let cur = "maxmin";
+const EPS = 1e-9;
+const fmt = (n,d=2)=>Number(n.toFixed(d)).toString();
+
+/* ---------- per-function model ---------- */
+const FUNCS = {
+  maxmin: {
+    tex: "u(x,y)=\\max\\bigl\\{\\,\\min\\{x,2y\\},\\ \\min\\{2x,y\\}\\,\\bigr\\}",
+    rays: true,
+    footnote: "The middle corner of the staircase (on <i>y = x</i>) is never chosen: the upper-contour set is non-convex, so the optimum sits on an <i>outer</i> corner.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      if(mode==="UMP"){
+        const M=third, kA=2*M/(2*px+py), kB=2*M/(px+2*py);
+        if(eq){o.level=kA; o.pts=[[kA,kA/2],[kB/2,kB]];}
+        else if(ratio<1){o.level=kA; o.pts=[[kA,kA/2]];}
+        else {o.level=kB; o.pts=[[kB/2,kB]];}
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (xᵈ, yᵈ):";
+        o.tex = eq ? "\\left(\\tfrac{2M}{2p_X+p_Y},\\tfrac{M}{2p_X+p_Y}\\right),\\ \\left(\\tfrac{M}{p_X+2p_Y},\\tfrac{2M}{p_X+2p_Y}\\right)"
+              : ratio<1 ? "\\left(\\dfrac{2M}{2p_X+p_Y},\\ \\dfrac{M}{2p_X+p_Y}\\right)"
+              : "\\left(\\dfrac{M}{p_X+2p_Y},\\ \\dfrac{2M}{p_X+2p_Y}\\right)";
+      } else {
+        const u=third; let e;
+        if(eq){o.pts=[[u,u/2],[u/2,u]]; e=u*(2*px+py)/2;}
+        else if(ratio<1){o.pts=[[u,u/2]]; e=u*(2*px+py)/2;}
+        else {o.pts=[[u/2,u]]; e=u*(px+2*py)/2;}
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target ū";
+        o.head="Hicksian demand (xʰ, yʰ):";
+        o.tex = eq ? "(\\bar u,\\tfrac{\\bar u}{2}),\\ (\\tfrac{\\bar u}{2},\\bar u)"
+              : ratio<1 ? "\\left(\\bar u,\\ \\dfrac{\\bar u}{2}\\right)"
+              : "\\left(\\dfrac{\\bar u}{2},\\ \\bar u\\right)";
+      }
+      o.regime = eq ? "<b>Knife-edge p<sub>X</sub>=p<sub>Y</sub>.</b> Both outer corners tie — <b>two solutions</b>."
+            : ratio<1 ? "p<sub>X</sub>/p<sub>Y</sub> &lt; 1 → corner on <i>y = x/2</i> (more X than Y)."
+            : "p<sub>X</sub>/p<sub>Y</sub> &gt; 1 → corner on <i>y = 2x</i> (more Y than X).";
+      return o;
+    },
+    contour(svg,k){
+      if(k<=EPS) return;
+      const sp=[[k/2,AX],[k/2,k],[k,k],[k,k/2],[AX,k/2]].map(p=>`${xPix(p[0])},${yPix(p[1])}`).join(" ");
+      svg.appendChild(el("polyline",{points:sp,fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    },
+    guides(svg){ ray(svg,AX/2,AX,"y = 2x",.62); ray(svg,AX,AX,"y = x",.78); ray(svg,AX,AX/2,"y = x/2",.62); }
+  },
+
+  sumsq: {
+    tex: "u(x,y)=\\sqrt{x^2+y^2}",
+    rays: false,
+    footnote: "The upper-contour set is non-convex and in this case it is optimal to buy a single good, the cheaper one.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      if(mode==="UMP"){
+        const M=third, xc=[M/px,0], yc=[0,M/py];
+        o.pts = eq?[xc,yc]:(ratio<1?[xc]:[yc]);
+        o.level = M/Math.min(px,py);            // u* = radius through the corner
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (xᵈ, yᵈ):";
+        o.tex = eq ? "\\left(\\tfrac{M}{p_X},0\\right),\\ \\left(0,\\tfrac{M}{p_Y}\\right)"
+              : ratio<1 ? "\\left(\\dfrac{M}{p_X},\\ 0\\right)" : "\\left(0,\\ \\dfrac{M}{p_Y}\\right)";
+      } else {
+        const u=third, xc=[u,0], yc=[0,u]; let e;            // target circle radius = ū
+        if(eq){o.pts=[xc,yc]; e=px*u;} else if(ratio<1){o.pts=[xc]; e=px*u;} else {o.pts=[yc]; e=py*u;}
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target ū";
+        o.head="Hicksian demand (xʰ, yʰ):";
+        o.tex = eq ? "\\left(\\bar u,0\\right),\\ \\left(0,\\bar u\\right)"
+              : ratio<1 ? "\\left(\\bar u,\\ 0\\right)" : "\\left(0,\\ \\bar u\\right)";
+      }
+      o.regime = eq ? "<b>p<sub>X</sub>=p<sub>Y</sub>.</b> Both axis corners tie — <b>two solutions</b>."
+            : "Spend everything on the cheaper good ("+(ratio<1?"all X":"all Y")+").";
+      return o;
+    },
+    contour(svg,k){
+      const r=k; if(r<=EPS) return;                          // level is the radius itself now
+      const pts=[]; const N=72;
+      for(let i=0;i<=N;i++){const th=(Math.PI/2)*i/N; const x=r*Math.cos(th), y=r*Math.sin(th);
+        if(x<=AX && y<=AX) pts.push(`${xPix(x)},${yPix(y)}`);}
+      svg.appendChild(el("polyline",{points:pts.join(" "),fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    }
+  },
+
+  maxxy: {
+    tex: "u(x,y)=\\max\\{x,\\ y\\}",
+    rays: false,
+    footnote: "The upper-contour set is non-convex and in this case it is optimal to buy a single good, the cheaper one.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      if(mode==="UMP"){
+        const M=third, xc=[M/px,0], yc=[0,M/py];
+        o.pts = eq?[xc,yc]:(ratio<1?[xc]:[yc]);
+        o.level = M/Math.min(px,py);
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (xᵈ, yᵈ):";
+        o.tex = eq ? "\\left(\\tfrac{M}{p_X},0\\right),\\ \\left(0,\\tfrac{M}{p_Y}\\right)"
+              : ratio<1 ? "\\left(\\dfrac{M}{p_X},\\ 0\\right)" : "\\left(0,\\ \\dfrac{M}{p_Y}\\right)";
+      } else {
+        const u=third, xc=[u,0], yc=[0,u]; let e;
+        if(eq){o.pts=[xc,yc]; e=px*u;} else if(ratio<1){o.pts=[xc]; e=px*u;} else {o.pts=[yc]; e=py*u;}
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target ū";
+        o.head="Hicksian demand (xʰ, yʰ):";
+        o.tex = eq ? "\\left(\\bar u,0\\right),\\ \\left(0,\\bar u\\right)"
+              : ratio<1 ? "\\left(\\bar u,\\ 0\\right)" : "\\left(0,\\ \\bar u\\right)";
+      }
+      o.regime = eq ? "<b>p<sub>X</sub>=p<sub>Y</sub>.</b> Both axis corners tie — <b>two solutions</b>."
+            : "Buy only the cheaper good ("+(ratio<1?"all X":"all Y")+").";
+      return o;
+    },
+    contour(svg,k){
+      if(k<=EPS) return;
+      const kk=Math.min(k,AX);
+      const pts=[[kk,0],[kk,kk],[0,kk]].map(p=>`${xPix(p[0])},${yPix(p[1])}`).join(" ");
+      svg.appendChild(el("polyline",{points:pts,fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    }
+  },
+
+  lse: {
+    tex: "u(x,y)=\\ln\\!\\left(e^{x}+e^{y}-1\\right)",
+    rays: false,
+    footnote: "The upper-contour set is non-convex and in this case it is optimal to buy a single good, the cheaper one.",
+    solve(px,py,third,mode){
+      const ratio=px/py, eq=Math.abs(px-py)<EPS;
+      let o={ratio,eq};
+      if(mode==="UMP"){
+        const M=third, xc=[M/px,0], yc=[0,M/py];
+        o.pts = eq?[xc,yc]:(ratio<1?[xc]:[yc]);
+        o.level = M/Math.min(px,py);                    // u* = M/p_min  (since u(x,0)=x)
+        o.line=M; o.objVal=M; o.objLabel="spending"; o.levelLabel="utility u*";
+        o.head="Marshallian demand (xᵈ, yᵈ):";
+        o.tex = eq ? "\\left(\\tfrac{M}{p_X},0\\right),\\ \\left(0,\\tfrac{M}{p_Y}\\right)"
+              : ratio<1 ? "\\left(\\dfrac{M}{p_X},\\ 0\\right)" : "\\left(0,\\ \\dfrac{M}{p_Y}\\right)";
+      } else {
+        const u=third, xc=[u,0], yc=[0,u]; let e;
+        if(eq){o.pts=[xc,yc]; e=px*u;} else if(ratio<1){o.pts=[xc]; e=px*u;} else {o.pts=[yc]; e=py*u;}
+        o.level=u; o.line=e; o.objVal=e; o.objLabel="min expenditure e*"; o.levelLabel="target u";
+        o.head="Hicksian demand (x\u02b0, y\u02b0):";
+        o.tex = eq ? "\\left(\\bar u,0\\right),\\ \\left(0,\\bar u\\right)"
+              : ratio<1 ? "\\left(\\bar u,\\ 0\\right)" : "\\left(0,\\ \\bar u\\right)";
+      }
+      o.regime = eq ? "<b>p<sub>X</sub>=p<sub>Y</sub>.</b> Both axis corners tie \u2014 <b>two solutions</b>."
+            : "Tangency is the worst point on the line \u2192 optimum is the axis corner: buy only the cheaper good ("+(ratio<1?"all X":"all Y")+").";
+      return o;
+    },
+    contour(svg,k){
+      if(k<=EPS) return;
+      const mid=Math.log((Math.exp(k)+1)/2);              // symmetric point x=y (~ k-ln2 for large k)
+      const f=t=>k+Math.log(1-Math.exp(t-k)+Math.exp(-k));// stable form; hits each axis at exactly k
+      const N=140, raw=[];
+      for(let i=0;i<=N;i++){ const x=mid*i/N; raw.push([x,f(x)]); }      // top arm: sweep x
+      for(let i=1;i<=N;i++){ const y=mid*(N-i)/N; raw.push([f(y),y]); }  // right arm: sweep y
+      const pts=raw.filter(p=>p[0]>=-EPS && p[1]>=-EPS && p[0]<=AX && p[1]<=AX)
+                   .map(p=>`${xPix(Math.max(0,p[0]))},${yPix(Math.max(0,p[1]))}`);
+      if(pts.length>1) svg.appendChild(el("polyline",{points:pts.join(" "),fill:"none",stroke:"var(--terracotta)","stroke-width":2.4}));
+    }
+  }
+};
+
+/* ---------- geometry ---------- */
+const AX = 42;
+const P = {l:56, r:24, t:24, b:48};
+const W=540, H=532, plotW=W-P.l-P.r, plotH=H-P.t-P.b;
+const xPix = x => P.l + (x/AX)*plotW;
+const yPix = y => P.t + plotH - (y/AX)*plotH;
+const FIXED_TICKS=[0,10,20,30,40];
+const clamp = v => Math.max(0, Math.min(AX, v));
+
+function el(tag, attrs){
+  const e=document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function clipBudget(px,py,B){
+  const cand=[]; let v;
+  v=B/py;          if(v>=-EPS && v<=AX+EPS) cand.push([0,clamp(v)]);
+  v=(B-px*AX)/py;  if(v>=-EPS && v<=AX+EPS) cand.push([AX,clamp(v)]);
+  v=B/px;          if(v>=-EPS && v<=AX+EPS) cand.push([clamp(v),0]);
+  v=(B-py*AX)/px;  if(v>=-EPS && v<=AX+EPS) cand.push([clamp(v),AX]);
+  const u=[]; for(const p of cand){ if(!u.some(q=>Math.abs(q[0]-p[0])<1e-6 && Math.abs(q[1]-p[1])<1e-6)) u.push(p); }
+  return u.length>=2 ? [u[0],u[1]] : null;
+}
+
+function ray(svg,ex,ey,label,lx){
+  svg.appendChild(el("line",{x1:xPix(0),y1:yPix(0),x2:xPix(ex),y2:yPix(ey),stroke:"var(--sage)","stroke-width":1.3,"stroke-dasharray":"5 4"}));
+  const t=el("text",{x:xPix(ex*lx)+4,y:yPix(ey*lx)-4,fill:"#9aa388","font-size":12,"font-style":"italic"});
+  t.textContent=label; svg.appendChild(t);
+}
+
+function fixedTick(svg,val,axis){
+  if(axis==="x"){
+    svg.appendChild(el("line",{x1:xPix(val),y1:P.t+plotH,x2:xPix(val),y2:P.t+plotH+5,stroke:"#3a342b","stroke-width":1.2}));
+    const t=el("text",{x:xPix(val),y:P.t+plotH+18,fill:"#7a7466","font-size":12,"text-anchor":"middle"}); t.textContent=val; svg.appendChild(t);
+  } else {
+    if(val===0) return;
+    svg.appendChild(el("line",{x1:P.l-5,y1:yPix(val),x2:P.l,y2:yPix(val),stroke:"#3a342b","stroke-width":1.2}));
+    const t=el("text",{x:P.l-12,y:yPix(val)+4,fill:"#7a7466","font-size":12,"text-anchor":"end"}); t.textContent=val; svg.appendChild(t);
+  }
+}
+function dynTick(svg,val,axis){
+  if(val<0.05 || val>AX) return;
+  if(axis==="x"){
+    svg.appendChild(el("line",{x1:xPix(val),y1:P.t+plotH,x2:xPix(val),y2:P.t+plotH+5,stroke:"var(--gold)","stroke-width":1.6}));
+    const t=el("text",{x:xPix(val),y:P.t+plotH+30,fill:"var(--gold)","font-size":11,"text-anchor":"middle","font-weight":"bold"}); t.textContent=fmt(val); svg.appendChild(t);
+  } else {
+    svg.appendChild(el("line",{x1:P.l-5,y1:yPix(val),x2:P.l,y2:yPix(val),stroke:"var(--gold)","stroke-width":1.6}));
+    const t=el("text",{x:P.l-38,y:yPix(val)+4,fill:"var(--gold)","font-size":11,"text-anchor":"middle","font-weight":"bold"}); t.textContent=fmt(val); svg.appendChild(t);
+  }
+}
+
+function draw(s,px,py){
+  const svg=document.getElementById("plot"); svg.innerHTML="";
+  svg.appendChild(el("rect",{x:P.l,y:P.t,width:plotW,height:plotH,fill:"#fff"}));
+  for(const t of FIXED_TICKS){ if(t>0){
+    svg.appendChild(el("line",{x1:xPix(t),y1:P.t,x2:xPix(t),y2:P.t+plotH,stroke:"#f1ebdd"}));
+    svg.appendChild(el("line",{x1:P.l,y1:yPix(t),x2:P.l+plotW,y2:yPix(t),stroke:"#f1ebdd"}));
+  }}
+
+  if(FUNCS[cur].guides) FUNCS[cur].guides(svg);
+
+  // axes + arrowheads
+  const defs=el("defs",{}); const m=el("marker",{id:"arr",markerWidth:8,markerHeight:8,refX:6,refY:3,orient:"auto"});
+  m.appendChild(el("path",{d:"M0,0 L6,3 L0,6 Z",fill:"#3a342b"})); defs.appendChild(m); svg.appendChild(defs);
+  svg.appendChild(el("line",{x1:P.l,y1:P.t+plotH,x2:P.l+plotW+6,y2:P.t+plotH,stroke:"#3a342b","stroke-width":1.4,"marker-end":"url(#arr)"}));
+  svg.appendChild(el("line",{x1:P.l,y1:P.t+plotH,x2:P.l,y2:P.t-6,stroke:"#3a342b","stroke-width":1.4,"marker-end":"url(#arr)"}));
+  for(const t of FIXED_TICKS){ fixedTick(svg,t,"x"); fixedTick(svg,t,"y"); }
+  const xn=el("text",{x:P.l+plotW,y:P.t+plotH+44,fill:"#3a342b","font-size":14,"font-style":"italic","text-anchor":"end"}); xn.textContent="x →"; svg.appendChild(xn);
+  const yn=el("text",{x:P.l-40,y:P.t+12,fill:"#3a342b","font-size":14,"font-style":"italic"}); yn.textContent="y ↑"; svg.appendChild(yn);
+
+  // contour
+  FUNCS[cur].contour(svg, s.level);
+
+  // budget / iso-cost
+  if(s.line>EPS){ const seg=clipBudget(px,py,s.line); if(seg)
+    svg.appendChild(el("line",{x1:xPix(seg[0][0]),y1:yPix(seg[0][1]),x2:xPix(seg[1][0]),y2:yPix(seg[1][1]),stroke:"var(--violet)","stroke-width":2.6})); }
+
+  // optimal points + dynamic ticks
+  for(const [ox,oy] of s.pts){
+    svg.appendChild(el("circle",{cx:xPix(clamp(ox)),cy:yPix(clamp(oy)),r:5.5,fill:"var(--gold)",stroke:"#fff","stroke-width":1.4}));
+    dynTick(svg,ox,"x"); dynTick(svg,oy,"y");
+  }
+}
+
+function kx(elm,tex,disp){ if(window.katex){katex.render(tex,elm,{displayMode:!!disp,throwOnError:false});} else elm.textContent=tex; }
+
+function readout(s){
+  document.getElementById("kRatio").textContent = fmt(s.ratio,2)+(s.eq?"  (= 1)":(s.ratio<1?"  (< 1)":"  (> 1)"));
+  document.getElementById("kThird").textContent = fmt(parseFloat(document.getElementById("third").value),1);
+  document.getElementById("kLevelLbl").textContent = s.levelLabel;
+  document.getElementById("kLevel").textContent = fmt(s.level,2);
+  document.getElementById("kObjLbl").textContent = s.objLabel;
+  document.getElementById("kObj").textContent = fmt(s.objVal,2);
+  // avoid showing the same number twice: in UMP the control is M and the result is u*;
+  // in EMP the control is ū (so the level row would repeat it) and the result is e*.
+  document.getElementById("kvLevel").style.display = (mode==="UMP") ? "flex" : "none";
+  document.getElementById("kvObj").style.display = (mode==="EMP") ? "flex" : "none";
+  document.getElementById("regime").innerHTML = s.regime;
+
+  const soln=document.getElementById("soln"); soln.innerHTML="";
+  const head=document.createElement("div"); head.style.cssText="font-size:13px;color:var(--muted);margin-bottom:4px;"; head.textContent=s.head; soln.appendChild(head);
+  const box=document.createElement("div"); soln.appendChild(box); kx(box,s.tex,true);
+  const num=document.createElement("div"); num.style.cssText="margin-top:8px;font-size:14px;";
+  num.innerHTML=s.pts.map(p=>`(${fmt(p[0])}, ${fmt(p[1])})`).join("&nbsp; and &nbsp;"); soln.appendChild(num);
+}
+
+function syncThirdLabel(){
+  const third=document.getElementById("third"), lbl=document.getElementById("thirdLabel"), v=fmt(parseFloat(third.value),1);
+  if(mode==="UMP") lbl.innerHTML='<span>income&nbsp;M</span><b id="thirdVal">'+v+'</b>';
+  else lbl.innerHTML='<span>target utility&nbsp;ū</span><b id="thirdVal">'+v+'</b>';
+  document.getElementById("kThirdLbl").textContent = mode==="UMP"?"income M":"target ū";
+  document.getElementById("lblLine").textContent = mode==="UMP"?"budget line":"iso-cost line";
+  document.getElementById("readTitle").textContent = mode==="UMP"?"UMP solution":"EMP solution";
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById("btnUMP").classList.toggle("active",m==="UMP");
+  document.getElementById("btnEMP").classList.toggle("active",m==="EMP");
+  const third=document.getElementById("third");
+  if(m==="UMP"){ third.min=0; third.max=10; third.step=0.1; if(+third.value>10) third.value=10; }
+  else { third.min=0; third.max=40; third.step=0.1; }
+  syncThirdLabel(); update();
+}
+
+function setFunc(f){
+  cur=f;
+  kx(document.getElementById("ufn"), FUNCS[f].tex, true);
+  document.getElementById("legRays").style.display = FUNCS[f].rays ? "inline-flex" : "none";
+  document.getElementById("footnote").innerHTML =
+    "Axes fixed at 0–40 with ticks {0,10,20,30,40}; gold ticks mark the optimal coordinates and move with the sliders. " + FUNCS[f].footnote;
+  update();
+}
+
+function update(){
+  const px=parseFloat(document.getElementById("px").value);
+  const py=parseFloat(document.getElementById("py").value);
+  const third=parseFloat(document.getElementById("third").value);
+  document.getElementById("pxVal").textContent=fmt(px,2);
+  document.getElementById("pyVal").textContent=fmt(py,2);
+  const tv=document.getElementById("thirdVal"); if(tv) tv.textContent=fmt(third,1);
+  const s=FUNCS[cur].solve(px,py,third,mode);
+  draw(s,px,py); readout(s);
+}
+
+["px","py","third"].forEach(id=>document.getElementById(id).addEventListener("input",update));
+document.getElementById("btnUMP").addEventListener("click",()=>setMode("UMP"));
+document.getElementById("btnEMP").addEventListener("click",()=>setMode("EMP"));
+document.getElementById("ufunc").addEventListener("change",e=>setFunc(e.target.value));
+
+window.addEventListener("load",()=>{ setFunc("maxmin"); });
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+---
+import 'katex/dist/katex.min.css';
+import { withBase } from '../utils';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = 'Interactive tools, notes, and problem sets for economics students.' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title} · Econschool Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="wordmark" href={withBase('/')}>Econschool <span>Lab</span></a>
+      <nav>
+        <a href={withBase('/micro/')}>Micro</a>
+        <a href={withBase('/maths/')}>Maths</a>
+        <a href={withBase('/probability/')}>Probability</a>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <span>Econschool · Amit Goyal</span>
+      <span class="dot">·</span>
+      <a href="https://econschool.in">econschool.in</a>
+      <span class="dot">·</span>
+      <a href="mailto:amit@econschool.in">amit@econschool.in</a>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --violet: #5a1ba6;
+    --terracotta: #a03a2c;
+    --sage: #9caf88;
+    --cream: #faf7f2;
+    --ink: #2c2433;
+    --ink-soft: #5d5566;
+    --card: #ffffff;
+    --serif: 'STIX Two Text', 'STIX Two Math', Georgia, serif;
+    --label: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: var(--cream);
+  }
+
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+  }
+
+  main {
+    width: min(60rem, 100% - 2.5rem);
+    margin: 0 auto;
+    flex: 1;
+    padding-bottom: 4rem;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--violet);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  a {
+    color: var(--terracotta);
+    text-decoration-color: color-mix(in srgb, var(--terracotta) 40%, transparent);
+    text-underline-offset: 3px;
+  }
+
+  a:hover {
+    text-decoration-color: var(--terracotta);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--violet);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  .eyebrow {
+    font-family: var(--label);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* Header */
+  .site-header {
+    width: min(60rem, 100% - 2.5rem);
+    margin: 0 auto;
+    padding: 1.4rem 0 1.1rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--sage) 55%, transparent);
+  }
+
+  .wordmark {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--violet);
+    text-decoration: none;
+  }
+
+  .wordmark span {
+    color: var(--terracotta);
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  .site-header nav {
+    display: flex;
+    gap: 1.25rem;
+    font-family: var(--label);
+    font-size: 0.85rem;
+  }
+
+  .site-header nav a {
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+
+  .site-header nav a:hover {
+    color: var(--violet);
+  }
+
+  /* Footer */
+  .site-footer {
+    width: min(60rem, 100% - 2.5rem);
+    margin: 0 auto;
+    padding: 1.2rem 0 2rem;
+    border-top: 1px solid color-mix(in srgb, var(--sage) 55%, transparent);
+    font-family: var(--label);
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+
+  .site-footer .dot {
+    margin: 0 0.5rem;
+    color: var(--sage);
+  }
+
+  .site-footer a {
+    color: var(--ink-soft);
+  }
+
+  /* Rendered Markdown (notes & problem sets) */
+  .prose {
+    max-width: 46rem;
+  }
+
+  .prose h1 {
+    font-size: 2rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .prose h2 {
+    font-size: 1.35rem;
+    margin-top: 2.2rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--sage) 50%, transparent);
+  }
+
+  .prose .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+  }
+
+  .prose blockquote {
+    margin: 1.2rem 0;
+    padding: 0.1rem 1.1rem;
+    border-left: 3px solid var(--sage);
+    color: var(--ink-soft);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+</style>

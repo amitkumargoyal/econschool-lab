@@ -1,0 +1,179 @@
+---
+import Base from '../layouts/Base.astro';
+import { subjects } from '../data/subjects';
+import { tools } from '../data/tools';
+import { getCollection } from 'astro:content';
+import { withBase } from '../utils';
+
+export function getStaticPaths() {
+  return subjects.map((s) => ({ params: { subject: s.id }, props: { subject: s } }));
+}
+
+const { subject } = Astro.props;
+
+const subjectTools = tools.filter((t) => t.subject === subject.id);
+const subjectNotes = (await getCollection('notes', ({ data }) => !data.draft && data.subject === subject.id)).sort(
+  (a, b) => a.data.order - b.data.order
+);
+const subjectPS = (
+  await getCollection('problemSets', ({ data }) => !data.draft && data.subject === subject.id)
+).sort((a, b) => a.data.order - b.data.order);
+
+// Collect topics in first-seen order across all three material types.
+const topicOrder: string[] = [];
+const seen = new Set<string>();
+for (const t of [
+  ...subjectTools.map((x) => x.topic),
+  ...subjectNotes.map((x) => x.data.topic),
+  ...subjectPS.map((x) => x.data.topic),
+]) {
+  if (!seen.has(t)) {
+    seen.add(t);
+    topicOrder.push(t);
+  }
+}
+
+const isEmpty = topicOrder.length === 0;
+---
+
+<Base title={subject.title}>
+  <header class="subject-head">
+    <p class="eyebrow">Subject</p>
+    <h1>{subject.title}</h1>
+    <p class="blurb">{subject.blurb}</p>
+  </header>
+
+  {
+    isEmpty ? (
+      <p class="empty">
+        Material for this subject is on its way. Tools and notes appear here as soon as they are added.
+      </p>
+    ) : (
+      topicOrder.map((topic) => (
+        <section class="topic">
+          <h2>{topic}</h2>
+
+          {subjectTools.filter((t) => t.topic === topic).length > 0 && (
+            <div class="group">
+              <p class="eyebrow">Interactive tools</p>
+              <ul>
+                {subjectTools
+                  .filter((t) => t.topic === topic)
+                  .map((t) => (
+                    <li>
+                      <a href={withBase(t.file)} target="_blank" rel="noopener">
+                        {t.title} <span class="newtab">↗</span>
+                      </a>
+                      <span class="desc">{t.description}</span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+
+          {subjectNotes.filter((n) => n.data.topic === topic).length > 0 && (
+            <div class="group">
+              <p class="eyebrow">Notes</p>
+              <ul>
+                {subjectNotes
+                  .filter((n) => n.data.topic === topic)
+                  .map((n) => (
+                    <li>
+                      <a href={withBase(`/notes/${n.id}/`)}>{n.data.title}</a>
+                      {n.data.summary && <span class="desc">{n.data.summary}</span>}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+
+          {subjectPS.filter((p) => p.data.topic === topic).length > 0 && (
+            <div class="group">
+              <p class="eyebrow">Problem sets</p>
+              <ul>
+                {subjectPS
+                  .filter((p) => p.data.topic === topic)
+                  .map((p) => (
+                    <li>
+                      <a href={withBase(`/problem-sets/${p.id}/`)}>{p.data.title}</a>
+                      {p.data.summary && <span class="desc">{p.data.summary}</span>}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      ))
+    )
+  }
+</Base>
+
+<style>
+  .subject-head {
+    padding: 2.4rem 0 0.6rem;
+  }
+
+  .subject-head h1 {
+    margin: 0.3rem 0 0.6rem;
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+  }
+
+  .blurb {
+    max-width: 38rem;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .empty {
+    margin-top: 2rem;
+    padding: 1.4rem 1.5rem;
+    background: var(--card);
+    border-left: 3px solid var(--sage);
+    border-radius: 4px;
+    color: var(--ink-soft);
+  }
+
+  .topic {
+    margin-top: 2.4rem;
+  }
+
+  .topic > h2 {
+    font-size: 1.35rem;
+    margin: 0 0 0.9rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--sage) 55%, transparent);
+  }
+
+  .group {
+    margin: 1.1rem 0;
+  }
+
+  .group .eyebrow {
+    margin: 0 0 0.35rem;
+  }
+
+  .group ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .group li {
+    padding: 0.45rem 0;
+  }
+
+  .group li a {
+    font-weight: 500;
+  }
+
+  .newtab {
+    font-size: 0.8em;
+    color: var(--sage);
+  }
+
+  .desc {
+    display: block;
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+  }
+</style>
