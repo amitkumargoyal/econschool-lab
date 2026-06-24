@@ -18,8 +18,9 @@ this is equivalent to $u$ being quasi-concave:
 
 $$
 u\bigl(\lambda (x',y') + (1-\lambda)\, (x'',y'')\bigr) \;\ge\; \min\{u(x',y'),\, u(x'',y'')\} 
-\qquad \text{for all } \lambda \in [0,1] \text{ and for all } (x',y'), \ (x'',y'')  \in \mathbb{R}^2_+.
 $$
+
+for all  $\lambda \in [0,1]$ and for all $(x',y'), \ (x'',y'')  \in \mathbb{R}^2_+.$
 
 ## Why it matters for demand
 
