@@ -14,8 +14,8 @@ u(x, y) = \min\{\, 2x,\; x + \ln y \,\},
 $$
 
 1. Find the kink locus and sketch a representative indifference curve.
-2. Derive Marshallian demand $(x^d, y^d)$, identifying the corner, interior,
-   and kink regimes and the conditions on $(p_x, p_y, M)$ under which each
+2. Derive Marshallian demand $(x^d, y^d)$, identifying the corner, 
+   interior, and kink regimes and the conditions on $(p_x, p_y, M)$ under which each
    obtains.
 3. Verify your answer at $p_x = p_y = 1$, $M = 2$ using the convex-preferences
    visualiser.

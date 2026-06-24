@@ -7,7 +7,7 @@ order: 1
 ---
 
 A preference relation $\succsim$ on $\mathbb{R}^2_+$ is **convex** if for every
-bundle $z$, the upper contour set
+bundle $z\in \mathbb{R}^2_+$, the upper contour set
 
 $$
 U(z) = \{\, w \in \mathbb{R}^2_+ : w \succsim z \,\}
@@ -17,8 +17,8 @@ is a convex set. When preferences are represented by a utility function $u$,
 this is equivalent to $u$ being quasi-concave:
 
 $$
-u\bigl(\lambda x + (1-\lambda)\, y\bigr) \;\ge\; \min\{u(x),\, u(y)\}
-\qquad \text{for all } \lambda \in [0,1].
+u\bigl(\lambda (x',y') + (1-\lambda)\, (x'',y'')\bigr) \;\ge\; \min\{u(x',y'),\, u(x'',y'')\}
+\qquad \text{for all } \lambda \in [0,1] and \text{for all } (x',y'), \ (x'',y'')  \in \mathbb{R}^2_+.
 $$
 
 ## Why it matters for demand
@@ -37,9 +37,13 @@ tangency condition can pick out the **worst** point on the budget line.
 Moreover, the set of demanded bundles may fail to be convex.
 
 At kinks the MRS is undefined, so even under convexity the optimum need not be
-a tangency — it can sit at a kink or at a corner of the budget set. The
-interactive tools on the [Microeconomics page](../../micro/) let you watch all
+a tangency — it can sit at a kink or at a corner of the budget set. 
+
+<!-- 
+The
+interactive tools on the [Microeconomics page]() let you watch all
 three regimes as prices move.
+-->
 
 ## A canonical example
 
